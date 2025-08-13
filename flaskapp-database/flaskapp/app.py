@@ -1,6 +1,5 @@
 from flask import Flask, render_template, json, request, redirect, session
 from flaskext.mysql import MySQL
-import mysql.connector
 import os
 
 app = Flask(__name__)
