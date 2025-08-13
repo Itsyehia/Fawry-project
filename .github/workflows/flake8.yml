@@ -32,12 +32,12 @@ jobs:
 
       - name: Run unit tests with coverage
         #  runs all unit tests while tracking coverage for the Flask app's code
+        ## Creates a detailed HTML page showing coverage breakdown
+        ## Generates a machine-readable XML report
+        ## Runs all tests while tracking coverage for the 'app' module
         run: |
           cd flaskapp-database/flaskapp
-          pytest \
-            --cov=app \             # Runs all tests while tracking coverage for the 'app' module
-            --cov-report=xml \      # Generates a machine-readable XML report
-            --cov-report=html       # Creates a detailed HTML page showing coverage breakdown
+          pytest --cov=app --cov-report=xml  --cov-report=html       
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
@@ -68,7 +68,7 @@ jobs:
 
       - name: Run flake8
         run: flake8 .
-        
+
   # Build and push Docker images (FlaskApp & MySQL). 
   build_and_push:
     runs-on: ubuntu-latest
