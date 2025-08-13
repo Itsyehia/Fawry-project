@@ -117,6 +117,7 @@ def showAddWish():
 
 @app.route('/addWish', methods=['POST'])
 def addWish():
+    cursor = None
     try:
         if session.get('user'):
             _title = request.form['inputTitle']
