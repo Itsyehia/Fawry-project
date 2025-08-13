@@ -1,0 +1,8 @@
+# k8s/overlays/production/ingress-patch.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: flaskapp
+spec:
+  rules:
+    - host: flaskapp.example.com

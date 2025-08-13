@@ -1,0 +1,9 @@
+# k8s/overlays/testing/ingress-patch.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: flaskapp
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: flaskapp.localtest.me

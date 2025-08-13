@@ -1,0 +1,15 @@
+# k8s/overlays/production/kustomization.yaml
+resources:
+  - ../../base
+
+images:
+  - name: yehiashaikhoun/flaskapp
+    newName: docker.io/yehiashaikhoun/flaskapp
+    newTag: stable
+  - name: yehiashaikhoun/mysql
+    newName: docker.io/yehiashaikhoun/mysql
+    newTag: stable
+
+patchesStrategicMerge:
+  - flask-deploy-patch.yaml
+  - ingress-patch.yaml

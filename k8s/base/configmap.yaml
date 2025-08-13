@@ -1,0 +1,10 @@
+# k8s/base/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flaskapp-config
+data:
+  MYSQL_DATABASE_USER: root
+  MYSQL_DATABASE_DB: BucketList
+  MYSQL_DATABASE_HOST: mysql
+  FLASK_RUN_PORT: "5002"

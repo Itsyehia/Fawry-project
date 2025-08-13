@@ -1,0 +1,15 @@
+# k8s/overlays/testing/kustomization.yaml
+resources:
+  - ../../base
+
+images:
+  - name: your-docker-username/flaskapp
+    newName: docker.io/REPLACE_WITH_YOUR_USER/flaskapp
+    newTag: latest
+  - name: your-docker-username/mysql
+    newName: docker.io/REPLACE_WITH_YOUR_USER/mysql
+    newTag: latest
+
+patchesStrategicMerge:
+  - flask-deploy-patch.yaml
+  - ingress-patch.yaml

@@ -1,0 +1,18 @@
+# k8s/base/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: flaskapp
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: change-me.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: flaskapp
+                port:
+                  number: 80
