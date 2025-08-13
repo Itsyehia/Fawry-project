@@ -62,7 +62,8 @@ def test_validate_login_success(mock_mysql, client):
     mock_cursor = MagicMock()
     mock_mysql.connect.return_value = mock_conn
     mock_conn.cursor.return_value = mock_cursor
-    mock_cursor.fetchall.return_value = [(1, "John", "john@example.com", "pass123")]
+    mock_cursor.fetchall.return_value = [
+        (1, "John", "john@example.com", "pass123")]
 
     response = client.post('/validateLogin', data={
         'inputEmail': 'john@example.com',
