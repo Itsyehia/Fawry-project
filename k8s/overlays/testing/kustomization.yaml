@@ -3,11 +3,11 @@ resources:
   - ../../base
 
 images:
-  - name: your-docker-username/flaskapp
-    newName: docker.io/REPLACE_WITH_YOUR_USER/flaskapp
+  - name: yehiashaikhoun/flaskapp
+    newName: yehiashaikhoun/flaskapp
     newTag: latest
-  - name: your-docker-username/mysql
-    newName: docker.io/REPLACE_WITH_YOUR_USER/mysql
+  - name: yehiashaikhoun/mysql
+    newName: docker.io/yehiashaikhoun/mysql
     newTag: latest
 
 patchesStrategicMerge:

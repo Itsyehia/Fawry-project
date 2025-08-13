@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: mysql
-          image: your-docker-username/mysql:latest
+          image: yehiashaikhoun/mysql:latest
           env:
             - name: MYSQL_ROOT_PASSWORD
               value: "root"
@@ -45,7 +45,7 @@ spec:
     spec:
       containers:
         - name: flaskapp
-          image: your-docker-username/flaskapp:latest
+          image: yehiashaikhoun/flaskapp:latest
           envFrom:
             - configMapRef:
                 name: flaskapp-config
