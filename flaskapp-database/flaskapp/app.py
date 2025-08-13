@@ -1,5 +1,6 @@
-from flask import Flask, render_template, json, request, redirect, session
+from flask import Flask, render_template, request, redirect, session
 from flaskext.mysql import MySQL
+import json
 import os
 
 app = Flask(__name__)
@@ -117,6 +118,7 @@ def showAddWish():
 
 @app.route('/addWish', methods=['POST'])
 def addWish():
+    conn = None
     cursor = None
     try:
         if session.get('user'):
@@ -141,8 +143,16 @@ def addWish():
     except Exception as e:
         return render_template('error.html', error=str(e))
     finally:
-        cursor.close()
-        conn.close()
+        if cursor is not None:
+            try:
+                cursor.close()
+            except Exception:
+                pass
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
 
 
 @app.route('/getWish')
