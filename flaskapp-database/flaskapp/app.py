@@ -33,9 +33,9 @@ def showSignUp():
 @app.route('/signUp', methods=['POST', 'GET'])
 def signUp():
     # read the posted values from the UI
-    _name = request.form['inputName']
-    _email = request.form['inputEmail']
-    _password = request.form['inputPassword']
+    _name = request.form.get('inputName')
+    _email = request.form.get('inputEmail')
+    _password = request.form.get('inputPassword')
 
     # validate the received values
     if _name and _email and _password:
@@ -54,7 +54,8 @@ def signUp():
         else:
             return json.dumps({'error': str(data[0])})
     else:
-        return json.dumps({'html': '<span>Enter the required fields</span>'})
+        return render_template(
+            'error.html', error='Enter the required fields'), 400
 
 
 @app.route('/showSignIn')
@@ -111,6 +112,8 @@ def showAddWish():
 
 @app.route('/addWish', methods=['POST'])
 def addWish():
+    conn = None
+    cursor = None
     try:
         if session.get('user'):
             _title = request.form['inputTitle']
@@ -134,8 +137,16 @@ def addWish():
     except Exception as e:
         return render_template('error.html', error=str(e))
     finally:
-        cursor.close()
-        conn.close()
+        if cursor is not None:
+            try:
+                cursor.close()
+            except Exception:
+                pass
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
 
 
 @app.route('/getWish')
