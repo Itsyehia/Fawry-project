@@ -16,6 +16,7 @@ spec:
       containers:
         - name: mysql
           image: yehiashaikhoun/mysql:latest
+          imagePullPolicy: Always
           env:
             - name: MYSQL_ROOT_PASSWORD
               value: "root"
@@ -46,6 +47,7 @@ spec:
       containers:
         - name: flaskapp
           image: yehiashaikhoun/flaskapp:latest
+          imagePullPolicy: Always
           envFrom:
             - configMapRef:
                 name: flaskapp-config
