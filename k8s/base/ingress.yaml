@@ -1,18 +1,17 @@
-# k8s/base/ingress.yaml
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: flaskapp
+  name: flaskapp-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
-  ingressClassName: nginx
   rules:
-    - host: flaskapp.localtest.me
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: flaskapp
-                port:
-                  number: 80
+  - http:
+      paths:
+      - path: /flask
+        pathType: Prefix
+        backend:
+          service:
+            name: flaskapp-service
+            port:
+              number: 80

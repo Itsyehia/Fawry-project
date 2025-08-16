@@ -1,9 +1,22 @@
-# k8s/overlays/testing/ingress-patch.yaml
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: flaskapp
+  name: flaskapp-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
 spec:
   ingressClassName: nginx
   rules:
-    - host: flaskapp.localtest.me
+    - host: localhost   # or testing.local if you map it in /etc/hosts
+      http:
+        paths:
+          - path: /flask(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: flaskapp-service
+                port:
+                  number: 80

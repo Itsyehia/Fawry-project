@@ -1,77 +1,40 @@
 <!DOCTYPE html>
-<html lang="en">
- 
+<html>
 <head>
-    <title>Python Flask Bucket List App</title>
- 
- 
-    <link href="https://getbootstrap.com/docs/3.4/dist/css/bootstrap.min.css" rel="stylesheet">
- 
-    <link href="https://getbootstrap.com/docs/3.4/examples/jumbotron-narrow/jumbotron-narrow.css" rel="stylesheet">
-    <link href="../static/css/signup.css" rel="stylesheet">
-    <script src="../static/js/jquery-1.12.2.js"></script>
-    <script src="../static/js/jquery-1.11.2.js"></script>
+    <title>User Home</title>
+    <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
+    <script src="{{ url_for('static', filename='js/jquery-1.12.2.js') }}"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="header clearfix">
+            <nav>
+                <ul class="nav nav-pills pull-right">
+                    <li role="presentation"><a href="{{ url_for('logout') }}">Logout</a></li>
+                </ul>
+            </nav>
+            <h3 class="text-muted">Welcome {{ session['username'] }}</h3>
+        </div>
+
+        <div>
+            <h2>Your Wishes</h2>
+            <ul id="wishList"></ul>
+        </div>
+    </div>
+
     <script>
-        $(function(){
+        $(document).ready(function() {
             $.ajax({
-                url : '/getWish',
-                type : 'GET',
-                success: function(res){
-                    var div = $('<div>')
-        .attr('class', 'list-group')
-        .append($('<a>')
-            .attr('class', 'list-group-item active')
-            .append($('<h4>')
-                .attr('class', 'list-group-item-heading'),
-                $('<p>')
-                .attr('class', 'list-group-item-text')));
-                                    
-                    
-                    
-                    var wishObj = JSON.parse(res);
-                    var wish = '';
-                    
-                    $.each(wishObj,function(index, value){
-                        wish = $(div).clone();
-                        $(wish).find('h4').text(value.Title);
-                        $(wish).find('p').text(value.Description);
-                        $('.jumbotron').append(wish);
+                url : "{{ url_for('getWish') }}",
+                type : "GET",
+                success: function(data) {
+                    var wishes = JSON.parse(data);
+                    wishes.forEach(function(wish) {
+                        $('#wishList').append('<li>' + wish + '</li>');
                     });
-                },
-                error: function(error){
-                    console.log(error);
                 }
             });
         });
     </script>
- 
-</head>
- 
-<body>
- 
-    <div class="container">
-        <div class="header">
-            <nav>
-                <ul class="nav nav-pills pull-right">
-                    <li role="presentation" class="active"><a href="/logout">Logout</a>
-                    </li>
-                    <li role="presentation"><a href="/showAddWish">Add Wish</a></li>
-                </ul>
-            </nav>
-            <h3 class="text-muted">Python Flask App</h3>
-        </div>
- 
-        <div class="jumbotron">
-            
- 
-        </div>
- 
- 
-        <footer class="footer">
-            <p>&copy; Company 2015</p>
-        </footer>
- 
-    </div>
 </body>
- 
 </html>

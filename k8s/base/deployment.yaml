@@ -50,8 +50,14 @@ spec:
             - configMapRef:
                 name: flaskapp-config
           env:
+            - name: MYSQL_DATABASE_USER
+              value: myuser
             - name: MYSQL_DATABASE_PASSWORD
-              value: "root"
+              value: mypass
+            - name: MYSQL_DATABASE_DB
+              value: mydb
+            - name: MYSQL_DATABASE_HOST
+              value: mydb-service
           ports:
             - containerPort: 5002
           readinessProbe:
