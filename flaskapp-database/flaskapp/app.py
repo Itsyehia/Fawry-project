@@ -12,11 +12,30 @@ app.config['MYSQL_DATABASE_PASSWORD'] = os.getenv('MYSQL_DATABASE_PASSWORD')
 app.config['MYSQL_DATABASE_DB'] = os.getenv('MYSQL_DATABASE_DB')
 app.config['MYSQL_DATABASE_HOST'] = os.getenv('MYSQL_DATABASE_HOST')
 
+# Configure Flask for subpath deployment
+app.config['APPLICATION_ROOT'] = '/flask'
 
 mysql.init_app(app)
 
 # set a secret key for the session
 app.secret_key = 'why would I tell you my secret key?'
+
+# Custom URL processor to handle subpath
+@app.url_defaults
+def add_subpath(endpoint, values):
+    """Add the /flask prefix to all generated URLs"""
+    pass
+
+from flask import url_for as flask_url_for
+
+def url_for(endpoint, **values):
+    """Custom url_for that adds /flask prefix"""
+    if endpoint == 'static':
+        return '/flask' + flask_url_for(endpoint, **values)
+    return '/flask' + flask_url_for(endpoint, **values)
+
+# Override the global url_for in templates
+app.jinja_env.globals['url_for'] = url_for
 
 
 @app.route("/")
