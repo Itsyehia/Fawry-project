@@ -7,8 +7,8 @@
     <link href="https://getbootstrap.com/docs/3.4/dist/css/bootstrap.min.css" rel="stylesheet">
  
     <link href="https://getbootstrap.com/docs/3.4/examples/jumbotron-narrow/jumbotron-narrow.css" rel="stylesheet">
-    <link href="../static/css/signup.css" rel="stylesheet">
-    <script src="../static/js/jquery-1.12.2.js"></script>
+    <link href="{{ url_for('static', filename='css/signup.css') }}" rel="stylesheet">
+    <script src="{{ url_for('static', filename='js/jquery-1.12.2.js') }}"></script>
     
   </head>
  
@@ -18,9 +18,9 @@
       <div class="header">
         <nav>
           <ul class="nav nav-pills pull-right">
-            <li role="presentation" ><a href="/">Home</a></li>
-            <li role="presentation" class="active"><a href="#">Sign In</a></li>
-            <li role="presentation" ><a href="/showSignUp">Sign Up</a></li>
+            <li role="presentation" ><a href="{{ url_for('main') }}">Home</a></li>
+            <li role="presentation" class="active"><a href="{{ url_for('showSignin') }}">Sign In</a></li>
+            <li role="presentation" ><a href="{{ url_for('showSignUp') }}">Sign Up</a></li>
           </ul>
         </nav>
         <h3 class="text-muted">Python Flask App</h3>
@@ -28,7 +28,7 @@
  
       <div class="jumbotron">
         <h1>Bucket List App</h1>
-        <form class="form-signin" action="/validateLogin" method="post">
+        <form class="form-signin" action="{{ url_for('validateLogin') }}" method="post">
         <label for="inputEmail" class="sr-only">Email address</label>
         <input type="email" name="inputEmail" id="inputEmail" class="form-control" placeholder="Email address" required autofocus>
         <label for="inputPassword" class="sr-only">Password</label>

@@ -18,11 +18,11 @@
         <div class="header">
             <nav>
                 <ul class="nav nav-pills pull-right">
-                    <li role="presentation" class="active"><a href="#">Home</a>
+                    <li role="presentation" class="active"><a href="{{ url_for('main') }}">Home</a>
                     </li>
-                    <li role="presentation"><a href="showSignIn">Sign In</a>
+                    <li role="presentation"><a href="{{ url_for('showSignin') }}">Sign In</a>
                     </li>
-                    <li role="presentation"><a href="showSignUp">Sign Up</a>
+                    <li role="presentation"><a href="{{ url_for('showSignUp') }}">Sign Up</a>
                     </li>
                 </ul>
             </nav>
@@ -32,7 +32,7 @@
         <div class="jumbotron">
             <h1>Bucket List App</h1>
             <p class="lead"></p>
-            <p><a class="btn btn-lg btn-success" href="showSignUp" role="button">Sign up today</a>
+            <p><a class="btn btn-lg btn-success" href="{{ url_for('showSignUp') }}" role="button">Sign up today</a>
             </p>
         </div>
  

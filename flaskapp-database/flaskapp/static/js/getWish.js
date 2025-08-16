@@ -1,6 +1,6 @@
 $(function() {
         $.ajax({
-            url: '/getWish',
+            url: FLASK_URLS.getWish,
             type: 'GET',
             success: function(res) {
                 var div = $('<div>')
@@ -24,6 +24,7 @@ $(function() {
             },
             error: function(error) {
                 console.log(error);
+                alert('Failed to load wishes. Please refresh the page.');
             }
         });
 });
