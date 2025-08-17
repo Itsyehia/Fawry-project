@@ -5,9 +5,9 @@
 
     <link href="https://getbootstrap.com/docs/3.4/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://getbootstrap.com/docs/3.4/examples/jumbotron-narrow/jumbotron-narrow.css" rel="stylesheet">
-    <link href="{{ url_for('static', filename='css/signup.css') }}" rel="stylesheet">
+    <link href="{{ BASE_PATH }}{{ url_for('static', filename='css/signup.css') }}" rel="stylesheet">
 
-    <script src="{{ url_for('static', filename='js/jquery-1.12.2.js') }}"></script>
+    <script src="{{ BASE_PATH }}{{ url_for('static', filename='js/jquery-1.12.2.js') }}"></script>
 </head>
 
 <body>
@@ -15,15 +15,15 @@
     <div class="header">
         <nav>
             <ul class="nav nav-pills pull-right">
-                <li role="presentation" class="active"><a href="{{ url_for('showAddWish') }}">Add Item</a></li>
-                <li role="presentation"><a href="{{ url_for('logout') }}">Logout</a></li>
+                <li role="presentation" class="active"><a href="{{ BASE_PATH }}{{ url_for('showAddWish') }}">Add Item</a></li>
+                <li role="presentation"><a href="{{ BASE_PATH }}{{ url_for('logout') }}">Logout</a></li>
             </ul>
         </nav>
         <h3 class="text-muted">Python Flask App</h3>
     </div>
 
     <section>
-        <form class="form-horizontal" method="post" action="{{ url_for('addWish') }}">
+        <form class="form-horizontal" method="post" action="{{ BASE_PATH }}{{ url_for('addWish') }}">
             <fieldset>
                 <legend>Create Your Wish</legend>
 

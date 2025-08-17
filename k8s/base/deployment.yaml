@@ -64,13 +64,13 @@ spec:
             - containerPort: 5002
           readinessProbe:
             httpGet:
-              path: /
+              path: /flask/
               port: 5002
             initialDelaySeconds: 10
             periodSeconds: 10
           livenessProbe:
             httpGet:
-              path: /
+              path: /flask/
               port: 5002
             initialDelaySeconds: 30
             periodSeconds: 30

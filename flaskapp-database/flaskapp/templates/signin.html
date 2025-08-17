@@ -14,9 +14,9 @@
     <div class="header">
         <nav>
             <ul class="nav nav-pills pull-right">
-                <li role="presentation"><a href="{{ url_for('main') }}">Home</a></li>
-                <li role="presentation" class="active"><a href="{{ url_for('showSignin') }}">Sign In</a></li>
-                <li role="presentation"><a href="{{ url_for('showSignUp') }}">Sign Up</a></li>
+                <li role="presentation"><a href="{{ BASE_PATH }}{{ url_for('main') }}">Home</a></li>
+                <li role="presentation" class="active"><a href="{{ BASE_PATH }}{{ url_for('showSignIn') }}">Sign In</a></li>
+                <li role="presentation"><a href="{{ BASE_PATH }}{{ url_for('showSignUp') }}">Sign Up</a></li>
             </ul>
         </nav>
         <h3 class="text-muted">Python Flask App</h3>
@@ -24,7 +24,7 @@
 
     <div class="jumbotron">
         <h1>Bucket List App</h1>
-        <form class="form-signin" action="{{ url_for('validateLogin') }}" method="post">
+        <form id="signinForm" action="{{ url_for('validateLogin') }}" method="post">
             <label for="inputEmail" class="sr-only">Email address</label>
             <input type="email" name="inputEmail" id="inputEmail" class="form-control" placeholder="Email address" required autofocus>
             <label for="inputPassword" class="sr-only">Password</label>

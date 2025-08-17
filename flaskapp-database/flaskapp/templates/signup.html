@@ -5,15 +5,11 @@
 
     <link href="https://getbootstrap.com/docs/3.4/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://getbootstrap.com/docs/3.4/examples/jumbotron-narrow/jumbotron-narrow.css" rel="stylesheet">
-    <link href="{{ url_for('static', filename='css/signup.css') }}" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/signup.css') }}">
 
     <!-- Pass Flask URLs to JavaScript -->
-    <script>
-        const FLASK_URLS = {
-            signUp: "{{ url_for('signUp') }}",
-            showSignIn: "{{ url_for('showSignin') }}"
-        };
-    </script>
+    <script src="/static/js/config.js"></script>
+    <script src="/static/js/signup.js"></script>
 
     <script src="{{ url_for('static', filename='js/jquery-1.12.2.js') }}"></script>
     <script src="{{ url_for('static', filename='js/signUp.js') }}"></script>
@@ -24,9 +20,9 @@
     <div class="header">
         <nav>
             <ul class="nav nav-pills pull-right">
-                <li role="presentation"><a href="{{ url_for('main') }}">Home</a></li>
-                <li role="presentation"><a href="{{ url_for('showSignin') }}">Sign In</a></li>
-                <li role="presentation" class="active"><a href="{{ url_for('showSignUp') }}">Sign Up</a></li>
+                <li role="presentation"><a href="{{ BASE_PATH }}{{ url_for('main') }}">Home</a></li>
+                <li role="presentation"><a href="{{ BASE_PATH }}{{ url_for('showSignIn') }}">Sign In</a></li>
+                <li role="presentation" class="active"><a href="{{ BASE_PATH }}{{ url_for('showSignUp') }}">Sign Up</a></li>
             </ul>
         </nav>
         <h3 class="text-muted">Python Flask App</h3>

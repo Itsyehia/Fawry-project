@@ -5,18 +5,14 @@ $(function() {
         success: function(res) {
             try {
                 var wishObj = JSON.parse(res);
-                var divTemplate = $('<div>')
-                    .attr('class', 'list-group')
-                    .append($('<a>')
-                        .attr('class', 'list-group-item active')
-                        .append($('<h4>').attr('class', 'list-group-item-heading'))
-                        .append($('<p>').attr('class', 'list-group-item-text'))
-                    );
+                $('.jumbotron').empty(); // clear old wishes
 
                 $.each(wishObj, function(index, value) {
-                    var wish = divTemplate.clone();
-                    $(wish).find('h4').text(value.Title);
-                    $(wish).find('p').text(value.Description);
+                    var wish = $('<div class="list-group">')
+                        .append($('<a class="list-group-item active">')
+                            .append($('<h4 class="list-group-item-heading">').text(value.Title))
+                            .append($('<p class="list-group-item-text">').text(value.Description))
+                        );
                     $('.jumbotron').append(wish);
                 });
             } catch (e) {
@@ -25,7 +21,7 @@ $(function() {
             }
         },
         error: function(error) {
-            console.log(error);
+            console.error(error);
             alert('Failed to load wishes. Please refresh the page.');
         }
     });

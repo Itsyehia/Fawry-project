@@ -1,94 +1,106 @@
-from flask import Flask, render_template, json, request, redirect, session
+from flask import Flask, render_template, json, request, redirect, session, url_for
 from flaskext.mysql import MySQL
 import os
 
 app = Flask(__name__)
+app.secret_key = 'why_would_I_tell_you_my_secret'  # change for prod
 
 mysql = MySQL()
 
-# MySQL configurations
+# MySQL configurations (from env variables)
 app.config['MYSQL_DATABASE_USER'] = os.getenv('MYSQL_DATABASE_USER')
 app.config['MYSQL_DATABASE_PASSWORD'] = os.getenv('MYSQL_DATABASE_PASSWORD')
 app.config['MYSQL_DATABASE_DB'] = os.getenv('MYSQL_DATABASE_DB')
 app.config['MYSQL_DATABASE_HOST'] = os.getenv('MYSQL_DATABASE_HOST')
 
-
 mysql.init_app(app)
 
-# set a secret key for the session
-app.secret_key = 'why would I tell you my secret key?'
+# External prefix presented by ingress
+BASE_PATH = "/flask"
 
+# Make BASE_PATH available in Jinja templates (if you want to use it there)
+@app.context_processor
+def inject_base_path():
+    return dict(BASE_PATH=BASE_PATH)
+
+def redirect_with_base(endpoint, **values):
+    """
+    Build an app-internal URL with url_for, then prefix with BASE_PATH
+    so the browser is redirected to /flask/... (what ingress exposes).
+    """
+    return redirect(BASE_PATH + url_for(endpoint, **values))
 
 @app.route("/")
 def main():
     return render_template('index.html')
 
-
 @app.route('/showSignUp')
 def showSignUp():
     return render_template('signup.html')
 
-
-@app.route('/signUp', methods=['POST', 'GET'])
-def signUp():
-    # read the posted values from the UI
-    _name = request.form.get('inputName')
-    _email = request.form.get('inputEmail')
-    _password = request.form.get('inputPassword')
-
-    # validate the received values
-    if _name and _email and _password:
-        conn = mysql.connect()
-        cursor = conn.cursor()
-
-        # _hash_password = generate_password_hash(_password)
-
-        cursor.callproc('sp_createUser', (_name, _email, _password))
-
-        data = cursor.fetchall()
-
-        if len(data) == 0:
-            conn.commit()
-            return json.dumps({'message': 'User created successfully !'})
-        else:
-            return json.dumps({'error': str(data[0])})
-    else:
-        return render_template(
-            'error.html', error='Enter the required fields'), 400
-
-
 @app.route('/showSignIn')
-def showSignin():
+def showSignIn():
     return render_template('signin.html')
 
+@app.route('/signUp', methods=['POST'])
+def signUp():
+    conn, cursor = None, None
+    try:
+        _name = request.form.get('inputName')
+        _email = request.form.get('inputEmail')
+        _password = request.form.get('inputPassword')
+
+        if _name and _email and _password:
+            conn = mysql.connect()
+            cursor = conn.cursor()
+            cursor.callproc('sp_createUser', (_name, _email, _password))
+            data = cursor.fetchall()
+
+            if len(data) == 0:
+                conn.commit()
+                return json.dumps({'message': 'User created successfully !'})
+            else:
+                return json.dumps({'error': str(data[0])})
+        else:
+            return render_template('error.html', error='Enter the required fields'), 400
+    except Exception as e:
+        print("signUp error:", str(e))
+        return render_template('error.html', error=str(e))
+    finally:
+        try:
+            if cursor: cursor.close()
+        except: pass
+        try:
+            if conn: conn.close()
+        except: pass
 
 @app.route('/validateLogin', methods=['POST'])
 def validateLogin():
+    conn, cursor = None, None
     try:
         _username = request.form['inputEmail']
         _password = request.form['inputPassword']
 
-        con = mysql.connect()
-        cursor = con.cursor()
+        conn = mysql.connect()
+        cursor = conn.cursor()
         cursor.callproc('sp_validateLogin', (_username,))
         data = cursor.fetchall()
-        if len(data) > 0:
-            if data[0][3] == _password:
-                session['user'] = data[0][0]
-                return redirect('/userHome')
-            else:
-                return render_template(
-                    'error.html', error='Wrong Email address or Password')
-        else:
-            return render_template(
-                'error.html', error='Wrong Email address or Password')
 
+        if len(data) > 0 and data[0][3] == _password:
+            session['user'] = data[0][0]
+            return redirect_with_base('userHome')
+        else:
+            return render_template('error.html', error='Wrong Email address or Password')
     except Exception as e:
+        print("validateLogin error:", str(e))
         return render_template('error.html', error=str(e))
     finally:
-        cursor.close()
-        con.close()
-
+        try:
+            if cursor: cursor.close()
+        except: pass
+        try:
+            if conn: conn.close()
+        except: pass
 
 @app.route('/userHome')
 def userHome():
@@ -97,22 +109,38 @@ def userHome():
     else:
         return render_template('error.html', error='Unauthorized Access')
 
+@app.route('/getWish')
+def getWish():
+    conn, cursor = None, None
+    try:
+        if session.get('user'):
+            _user = session.get('user')
+            conn = mysql.connect()
+            cursor = conn.cursor()
+            cursor.callproc('sp_GetWishByUser', (_user,))
+            wishes = cursor.fetchall()
 
-@app.route('/logout')
-def logout():
-    session.pop('user', None)
-    return redirect('/')
-
-
-@app.route('/showAddWish')
-def showAddWish():
-    return render_template('addWish.html')
-
+            wishes_dict = [
+                {'Id': wish[0], 'Title': wish[1], 'Description': wish[2], 'Date': wish[4]}
+                for wish in wishes
+            ]
+            return json.dumps(wishes_dict)
+        else:
+            return render_template('error.html', error='Unauthorized Access')
+    except Exception as e:
+        print("getWish error:", str(e))
+        return render_template('error.html', error=str(e))
+    finally:
+        try:
+            if cursor: cursor.close()
+        except: pass
+        try:
+            if conn: conn.close()
+        except: pass
 
 @app.route('/addWish', methods=['POST'])
 def addWish():
-    conn = None
-    cursor = None
+    conn, cursor = None, None
     try:
         if session.get('user'):
             _title = request.form['inputTitle']
@@ -126,54 +154,31 @@ def addWish():
 
             if len(data) == 0:
                 conn.commit()
-                return redirect('/userHome')
+                return redirect_with_base('userHome')
             else:
-                return render_template(
-                    'error.html', error='An error occurred!')
-
+                return render_template('error.html', error='An error occurred!')
         else:
             return render_template('error.html', error='Unauthorized Access')
     except Exception as e:
+        print("addWish error:", str(e))
         return render_template('error.html', error=str(e))
     finally:
-        if cursor is not None:
-            try:
-                cursor.close()
-            except Exception:
-                pass
-        if conn is not None:
-            try:
-                conn.close()
-            except Exception:
-                pass
+        try:
+            if cursor: cursor.close()
+        except: pass
+        try:
+            if conn: conn.close()
+        except: pass
 
+@app.route('/logout')
+def logout():
+    session.pop('user', None)
+    return redirect_with_base('main')
 
-@app.route('/getWish')
-def getWish():
-    try:
-        if session.get('user'):
-            _user = session.get('user')
-
-            con = mysql.connect()
-            cursor = con.cursor()
-            cursor.callproc('sp_GetWishByUser', (_user,))
-            wishes = cursor.fetchall()
-
-            wishes_dict = []
-            for wish in wishes:
-                wish_dict = {
-                    'Id': wish[0],
-                    'Title': wish[1],
-                    'Description': wish[2],
-                    'Date': wish[4]}
-                wishes_dict.append(wish_dict)
-
-            return json.dumps(wishes_dict)
-        else:
-            return render_template('error.html', error='Unauthorized Access')
-    except Exception as e:
-        return render_template('error.html', error=str(e))
+@app.route('/healthz')
+def healthz():
+    return "ok", 200
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5002, debug=True)
+    app.run(host="0.0.0.0", port=5002)
