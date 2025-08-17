@@ -1,4 +1,4 @@
-from flask import Flask, render_template, json, request, redirect, session, url_for
+from flask import Flask, render_template, json, request, redirect, session, url_for, jsonify
 from flaskext.mysql import MySQL
 import os
 
@@ -58,14 +58,14 @@ def signUp():
 
             if len(data) == 0:
                 conn.commit()
-                return json.dumps({'message': 'User created successfully !'})
+                return jsonify({'message': 'User created successfully!'}), 200
             else:
-                return json.dumps({'error': str(data[0])})
+                return jsonify({'error': str(data[0])}), 400
         else:
-            return render_template('error.html', error='Enter the required fields'), 400
+            return jsonify({'error': 'Enter all required fields'}), 400
     except Exception as e:
-        print("signUp error:", str(e))
-        return render_template('error.html', error=str(e))
+        print("signUp error:", str(e))  # log the error
+        return jsonify({'error': str(e)}), 500
     finally:
         try:
             if cursor: cursor.close()
@@ -73,6 +73,7 @@ def signUp():
         try:
             if conn: conn.close()
         except: pass
+
 
 @app.route('/validateLogin', methods=['POST'])
 def validateLogin():

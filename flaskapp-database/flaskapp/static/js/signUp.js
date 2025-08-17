@@ -4,8 +4,8 @@ $(function() {
             url: FLASK_URLS.signUp,
             type: 'POST',
             data: $('#signupForm').serialize(),
-            success: function(response) {
-                var res = JSON.parse(response);
+            dataType: 'json',  // tells jQuery to expect JSON
+            success: function(res) {
                 if (res.message) {
                     alert(res.message);
                     window.location.href = FLASK_URLS.showSignIn;
@@ -13,9 +13,9 @@ $(function() {
                     alert(res.error);
                 }
             },
-            error: function(error) {
-                console.error(error);
-                alert('Signup failed, try again.');
+            error: function(xhr) {
+                console.error(xhr.responseText);
+                alert('Signup failed: ' + xhr.responseText);
             }
         });
     });
