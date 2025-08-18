@@ -12,6 +12,10 @@ spec:
       labels:
         app: flaskapp
     spec:
+      initContainers:
+        - name: wait-for-mysql
+          image: busybox:1.35
+          command: ['sh', '-c', 'until nc -z mysql 3306; do echo waiting for mysql; sleep 2; done;']
       containers:
         - name: flaskapp
           image: yehiashaikhoun/flaskapp:latest
@@ -26,13 +30,13 @@ spec:
             - containerPort: 5002
           readinessProbe:
             httpGet:
-              path: /healthz
+              path: /readiness
               port: 5002
-            initialDelaySeconds: 10
+            initialDelaySeconds: 30
             periodSeconds: 10
           livenessProbe:
             httpGet:
               path: /healthz
               port: 5002
-            initialDelaySeconds: 30
+            initialDelaySeconds: 60
             periodSeconds: 30

@@ -180,6 +180,16 @@ def logout():
 def healthz():
     return "ok", 200
 
+@app.route('/readiness')
+def readiness():
+    # readiness check that includes database connectivity
+    try:
+        conn = mysql.connect()
+        conn.close()
+        return "ready", 200
+    except Exception as e:
+        return f"not ready: {str(e)}", 503
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5002)

@@ -5,3 +5,4 @@ resources:
   - configmap.yaml
   - pvc.yaml
   - ingress.yaml
+  - mysql-deployment.yaml
