@@ -10,7 +10,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-    - host: localhost   # or testing.local if you map it in /etc/hosts
+    - host: 192.168.49.2.nip.io  # or testing.local if you map it in /etc/hosts
       http:
         paths:
           - path: /flask(/|$)(.*)

@@ -141,6 +141,7 @@ def getWish():
 
 @app.route('/addWish', methods=['POST'])
 def addWish():
+    import traceback
     conn, cursor = None, None
     try:
         if session.get('user'):
@@ -162,14 +163,17 @@ def addWish():
             return render_template('error.html', error='Unauthorized Access')
     except Exception as e:
         print("addWish error:", str(e))
-        return render_template('error.html', error=str(e))
+        traceback.print_exc()   # ✅ show full stack trace in logs
+        return render_template('error.html', error=str(e)), 500
     finally:
         try:
             if cursor: cursor.close()
-        except: pass
+        except: 
+            pass
         try:
             if conn: conn.close()
-        except: pass
+        except: 
+            pass
 
 @app.route('/logout')
 def logout():
