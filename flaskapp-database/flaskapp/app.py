@@ -176,9 +176,20 @@ def logout():
     session.pop('user', None)
     return redirect_with_base('main')
 
+@app.route('/showAddWish')
+def showAddWish():
+    if session.get('user'):
+        return render_template('addwish.html')
+    else:
+        return render_template('error.html', error='Unauthorized Access')
+
+
+
+
 @app.route('/healthz')
 def healthz():
     return "ok", 200
+
 
 @app.route('/readiness')
 def readiness():
