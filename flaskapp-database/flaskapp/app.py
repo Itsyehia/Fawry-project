@@ -183,7 +183,7 @@ def logout():
 @app.route('/showAddWish')
 def showAddWish():
     if session.get('user'):
-        return render_template('addwish.html')
+        return render_template('addWish.html')
     else:
         return render_template('error.html', error='Unauthorized Access')
 
