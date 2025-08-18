@@ -10,6 +10,6 @@ images:
     newName: docker.io/yehiashaikhoun/mysql
     newTag: latest
 
-patchesStrategicMerge:
-  - flask-deploy-patch.yaml
-  - ingress-patch.yaml
+patches:
+  - path: flask-deploy-patch.yaml
+  - path: ingress-patch.yaml

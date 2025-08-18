@@ -182,12 +182,16 @@ def healthz():
 
 @app.route('/readiness')
 def readiness():
-    # readiness check that includes database connectivity
+    """Readiness probe that checks database connectivity"""
     try:
         conn = mysql.connect()
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1")
+        cursor.close()
         conn.close()
         return "ready", 200
     except Exception as e:
+        print(f"Readiness check failed: {str(e)}")
         return f"not ready: {str(e)}", 503
 
 
