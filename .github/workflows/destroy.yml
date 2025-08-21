@@ -39,4 +39,4 @@ jobs:
 
       - name: Terraform Destroy
         working-directory: terraform
-        run: terraform destroy -auto-approve -var env=${{ github.event.inputs.env }}
+        run: terraform destroy -auto-approve
