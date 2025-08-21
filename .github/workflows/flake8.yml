@@ -14,73 +14,87 @@ jobs:
   test_and_coverage:
     runs-on: ubuntu-latest
     steps:
-      - name: Debug environment
-        run: |
-          echo "Runner: $(uname -a)"
-          docker version
-          docker info
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: |
+
+      - name: Install dependencies
+        run: |
+          set -x
           python -m pip install --upgrade pip
           pip install -r flaskapp-database/flaskapp/requirements.txt
           pip install pytest pytest-cov
-      - run: |
+
+      - name: Run pytest with coverage
+        run: |
           cd flaskapp-database/flaskapp
-          PYTHONPATH=. pytest --cov=app --cov-report=xml --cov-report=html
-      - uses: actions/upload-artifact@v4
+          PYTHONPATH=. pytest -v --cov=app --cov-report=xml --cov-report=html
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: flaskapp-database/flaskapp/htmlcov
 
   flake8:
     runs-on: ubuntu-latest
-    needs: test_and_coverage   
+    needs: test_and_coverage
     steps:
-      - name: Debug flake8
-        run: echo "Runner is up and running on $(uname -a)"
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Debug environment
-        run: |
-          echo "Runner: $(uname -a)"
-          docker version
-          docker info
-
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: |
+
+      - name: Install flake8
+        run: |
+          set -x
           python -m pip install --upgrade pip
           pip install flake8
-      - run: flake8 .
+
+      - name: Run flake8
+        run: flake8 . --show-source --statistics
 
   build_and_push:
     runs-on: ubuntu-latest
-    needs: flake8   
+    needs: flake8
     steps:
-      - name: Debug environment
-        run: |
-          echo "Runner: $(uname -a)"
-          docker version
-          docker info
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v2
-      - uses: docker/login-action@v2
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Docker login
+        uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-      - uses: docker/build-push-action@v4
+
+      - name: Build & push flaskapp image
+        uses: docker/build-push-action@v4
         with:
           context: ./flaskapp-database/flaskapp
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/flaskapp:latest
-      - uses: docker/build-push-action@v4
+          provenance: false
+          no-cache: true
+          build-args: |
+            BUILDKIT_PROGRESS=plain
+
+      - name: Build & push mysql image
+        uses: docker/build-push-action@v4
         with:
           context: ./flaskapp-database/mysql
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/mysql:latest
+          provenance: false
+          no-cache: true
+          build-args: |
+            BUILDKIT_PROGRESS=plain

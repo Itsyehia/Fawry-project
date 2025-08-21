@@ -1,2 +1,0 @@
-# Fawry-project
-
