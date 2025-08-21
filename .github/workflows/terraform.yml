@@ -169,7 +169,7 @@ jobs:
       worker_ip: ${{ steps.tf_outputs.outputs.worker_ip }}
       control_plane_private_ip: ${{ steps.tf_outputs.outputs.control_plane_private_ip }}
       worker_private_ip: ${{ steps.tf_outputs.outputs.worker_private_ip }}
-      ssh_private_key: ${{ steps.tf_outputs.outputs.private_key_path }}
+      ssh_private_key: ${{ steps.tf_outputs.outputs.ssh_private_key }}
       
   deploy:
     name: Build and Deploy Flask App to ECR
@@ -247,8 +247,7 @@ jobs:
             IdentityFile ~/.ssh/k3s-key
             StrictHostKeyChecking no
           EOF
-          echo "SSH config contents:"
-          cat ~/.ssh/config
+
 
       - name: Debug SSH Info
         run: |

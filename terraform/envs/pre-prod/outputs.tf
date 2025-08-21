@@ -20,3 +20,7 @@ output "ec2_private_ips" {
   description = "Private IP addresses of the EC2 instances."
   value       = module.compute.private_ips
 }
+output "ssh_private_key" {
+  value     = module.compute.private_key_pem
+  sensitive = true
+}
