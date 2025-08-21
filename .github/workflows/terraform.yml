@@ -103,7 +103,6 @@ jobs:
           CONTROL_PLANE_PRIVATE_IP=$(jq -r '.ec2_private_ips.value[0]' terraform_outputs.json)
           WORKER_PRIVATE_IP=$(jq -r '.ec2_private_ips.value[1]' terraform_outputs.json)
           ECR_REPOSITORY_URL=$(jq -r '.ecr_repository_url.value' terraform_outputs.json)
-          SSH_PRIVATE_KEY=$(jq -r '.ssh_private_key.value' terraform_outputs.json)
 
           echo "CONTROL_PLANE_IP=$CONTROL_PLANE_IP" >> $GITHUB_ENV
           echo "WORKER_IP=$WORKER_IP" >> $GITHUB_ENV
@@ -113,26 +112,13 @@ jobs:
 
           echo "control_plane_ip=$CONTROL_PLANE_IP" >> $GITHUB_OUTPUT
           echo "worker_ip=$WORKER_IP" >> $GITHUB_OUTPUT
-          echo "control_plane_private_ip=$CONTROL_PLANE_PRIVATE_IP" >> $GITHUB_OUTPUT
-          echo "worker_private_ip=$WORKER_PRIVATE_IP" >> $GITHUB_OUTPUT
           echo "ecr_repository_url=$ECR_REPOSITORY_URL" >> $GITHUB_OUTPUT
-          
-          # Save SSH private key to a file for later use
-          echo "$SSH_PRIVATE_KEY" > ssh_private_key.pem
-          chmod 600 ssh_private_key.pem
 
       - name: Copy Terraform SSH Private Key
         run: |
           cp terraform/modules/compute/poc-pre-prod-key.pem private-key.pem
           cp terraform/modules/compute/poc-pre-prod-key.pem ansible/poc-pre-prod-key.pem
           chmod 600 private-key.pem ansible/poc-pre-prod-key.pem
-
-      - name: Upload SSH private key as artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: ssh-private-key
-          path: private-key.pem
-          retention-days: 1
 
       - name: Generate Ansible Inventory
         run: |
@@ -154,6 +140,7 @@ jobs:
                     ansible_user: ubuntu
                     ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
                     private_ip: ${{ env.WORKER_PRIVATE_IP }}
+                    control_plane_private_ip: ${{ env.CONTROL_PLANE_PRIVATE_IP }}
           EOF
           cat inventory.yml
 
@@ -182,6 +169,7 @@ jobs:
       worker_ip: ${{ steps.tf_outputs.outputs.worker_ip }}
       control_plane_private_ip: ${{ steps.tf_outputs.outputs.control_plane_private_ip }}
       worker_private_ip: ${{ steps.tf_outputs.outputs.worker_private_ip }}
+      ssh_private_key: ${{ steps.tf_outputs.outputs.ssh_private_key }}
       
   deploy:
     name: Build and Deploy Flask App to ECR
@@ -195,12 +183,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-
-      - name: Download SSH private key
-        uses: actions/download-artifact@v3
-        with:
-          name: ssh-private-key
-          path: .
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -236,17 +218,17 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+
       - name: Display ECR Repository Information
         run: |
           echo "=== ECR DEPLOYMENT SUMMARY ==="
           echo "ECR Repository: ${{ needs.terraform.outputs.ecr_repository_url }}"
           echo "Flask Image: ${{ needs.terraform.outputs.ecr_repository_url }}:${{ env.IMAGE_TAG }}"
-          echo "MySQL Image: ${{ needs.terraform.outputs.ecr_repository_url }}:mysql-${{ env.IMAGE_TAG }}"
+          echo "MySQL Image: ${{ needs.terraform.outputs.ecr_repository_url }}-mysql:${{ env.IMAGE_TAG }}"
           echo "Image Tag: ${{ env.IMAGE_TAG }}"
           echo ""
           echo "=== NEXT STEPS ==="
           echo "Images are now available in ECR and ready for Kubernetes deployment"
-
       - name: Setup kubectl
         uses: azure/setup-kubectl@v3
         with:
@@ -255,7 +237,7 @@ jobs:
       - name: Setup SSH access to K3s
         run: |
           mkdir -p ~/.ssh
-          cp private-key.pem ~/.ssh/k3s-key
+          echo "${{ needs.terraform.outputs.ssh_private_key }}" > ~/.ssh/k3s-key
           chmod 600 ~/.ssh/k3s-key
           CONTROL_PLANE_IP="${{ needs.terraform.outputs.control_plane_ip }}"
           cat > ~/.ssh/config << EOF
@@ -266,14 +248,12 @@ jobs:
             StrictHostKeyChecking no
           EOF
 
+
       - name: Debug SSH Info
         run: |
           echo "Control plane IP: ${{ needs.terraform.outputs.control_plane_ip }}"
           ls -l ~/.ssh/
           cat ~/.ssh/config
-          echo "Testing SSH key format:"
-          head -1 ~/.ssh/k3s-key
-          tail -1 ~/.ssh/k3s-key
 
       - name: Copy kubeconfig from K3s
         run: |
@@ -296,3 +276,4 @@ jobs:
             echo "Attempt $i: kubectl not ready yet, waiting..."
             sleep 10
           done
+      
