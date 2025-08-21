@@ -192,7 +192,7 @@ def addWish():
         return render_template('error.html', error='Unauthorized Access')
     except Exception as e:
         print("addWish error:", str(e))
-        traceback.print_exc()   # ✅ show full stack trace in logs
+        traceback.print_exc()   
         return render_template('error.html', error=str(e)), 500
     finally:
         try:
