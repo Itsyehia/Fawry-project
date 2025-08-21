@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 from app import app
 
+
 @pytest.fixture
 def client():
     app.config['TESTING'] = True
@@ -63,7 +64,8 @@ def test_validate_login_success(mock_mysql, client):
     mock_mysql.connect.return_value = mock_conn
     mock_conn.cursor.return_value = mock_cursor
     mock_cursor.fetchall.return_value = [
-        (1, "John", "john@example.com", "pass123")]
+        (1, "John", "john@example.com", "pass123")
+    ]
 
     response = client.post('/validateLogin', data={
         'inputEmail': 'john@example.com',
@@ -205,7 +207,9 @@ def test_validate_login_wrong_password(mock_mysql, client):
     mock_cursor = MagicMock()
     mock_mysql.connect.return_value = mock_conn
     mock_conn.cursor.return_value = mock_cursor
-    mock_cursor.fetchall.return_value = [(1, "John", "john@example.com", "wrongpass")]
+    mock_cursor.fetchall.return_value = [
+        (1, "John", "john@example.com", "wrongpass")
+    ]
 
     response = client.post("/validateLogin", data={
         "inputEmail": "john@example.com",
