@@ -214,21 +214,10 @@ jobs:
           context: ./flaskapp-database/mysql
           push: true
           tags: |
-            ${{ needs.terraform.outputs.ecr_repository_url }}-mysql:${{ env.IMAGE_TAG }}
+            ${{ needs.terraform.outputs.ecr_repository_url }}:mysql-${{ env.IMAGE_TAG }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-      - name: Update Kubernetes manifests with new image tags
-        run: |
-          # Update Flask app image in kustomization
-          sed -i "s|newName: yehiashaikhoun/flaskapp|newName: ${{ needs.terraform.outputs.ecr_repository_url }}|g" k8s/overlays/testing/kustomization.yaml
-          sed -i "s|newTag: latest|newTag: ${{ env.IMAGE_TAG }}|g" k8s/overlays/testing/kustomization.yaml
           
-          # Update MySQL image in kustomization  
-          sed -i "s|newName: docker.io/yehiashaikhoun/mysql|newName: ${{ needs.terraform.outputs.ecr_repository_url }}-mysql|g" k8s/overlays/testing/kustomization.yaml
-          
-          echo "Updated Kubernetes manifests:"
-          cat k8s/overlays/testing/kustomization.yaml
 
       - name: Display ECR Repository Information
         run: |
