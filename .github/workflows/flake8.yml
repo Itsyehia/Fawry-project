@@ -11,64 +11,64 @@ permissions:
 
 # pipeline stages
 jobs:
-  # # Run unit tests with coverage.
-  # test_and_coverage:
-  #   runs-on: ubuntu-latest
+  # Run unit tests with coverage.
+  test_and_coverage:
+    runs-on: ubuntu-latest
 
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v4
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-  #     - name: Set up Python
-  #       uses: actions/setup-python@v5
-  #       with:
-  #         python-version: "3.11"
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-  #     # todo: add pytest and pytest-cov inside the requirements.txt
-  #     - name: Install dependencies
-  #       run: |
-  #         python -m pip install --upgrade pip
-  #         pip install -r flaskapp-database/flaskapp/requirements.txt
-  #         pip install pytest pytest-cov
+      # todo: add pytest and pytest-cov inside the requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r flaskapp-database/flaskapp/requirements.txt
+          pip install pytest pytest-cov
 
-  #     - name: Run unit tests with coverage
-  #       #  runs all unit tests while tracking coverage for the Flask app's code
-  #       ## Creates a detailed HTML page showing coverage breakdown
-  #       ## Generates a machine-readable XML report
-  #       ## Runs all tests while tracking coverage for the 'app' module
-  #       run: |
-  #         cd flaskapp-database/flaskapp
-  #         PYTHONPATH=. pytest --cov=app --cov-report=xml --cov-report=html
+      - name: Run unit tests with coverage
+        #  runs all unit tests while tracking coverage for the Flask app's code
+        ## Creates a detailed HTML page showing coverage breakdown
+        ## Generates a machine-readable XML report
+        ## Runs all tests while tracking coverage for the 'app' module
+        run: |
+          cd flaskapp-database/flaskapp
+          PYTHONPATH=. pytest --cov=app --cov-report=xml --cov-report=html
 
-  #     - name: Upload coverage report
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         # uploads the coverage report to the GitHub Actions workflow
-  #         name: coverage-report
-  #         # Path to HTML coverage report
-  #         path: flaskapp-database/flaskapp/htmlcov
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          # uploads the coverage report to the GitHub Actions workflow
+          name: coverage-report
+          # Path to HTML coverage report
+          path: flaskapp-database/flaskapp/htmlcov
 
 
-  # # Lint with flake8.
-  # flake8:
-  #   runs-on: ubuntu-latest
-  #   needs: test_and_coverage
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v4
+  # Lint with flake8.
+  flake8:
+    runs-on: ubuntu-latest
+    needs: test_and_coverage
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-  #     - name: Set up Python
-  #       uses: actions/setup-python@v5
-  #       with:
-  #         python-version: "3.11"
-  #     # todo: add flake8 inside the requirements.txt
-  #     - name: Install flake8
-  #       run: |
-  #         python -m pip install --upgrade pip
-  #         pip install flake8
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      # todo: add flake8 inside the requirements.txt
+      - name: Install flake8
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8
 
-  #     - name: Run flake8
-  #       run: flake8 .
+      - name: Run flake8
+        run: flake8 .
 
   # Build and push Docker images (FlaskApp & MySQL). 
   build_and_push:
