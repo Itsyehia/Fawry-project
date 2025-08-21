@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from app import app
+from app import app, inject_base_path, redirect_with_base
 # remove unused variables and imports in test_app.py to pass the pipeline
 # autoflake --in-place --remove-unused-variables
 # --remove-all-unused-imports tests/test_app.py; autopep8 --in-place
