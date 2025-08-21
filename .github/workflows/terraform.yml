@@ -237,7 +237,7 @@ jobs:
       - name: Setup SSH access to K3s
         run: |
           mkdir -p ~/.ssh
-          echo "${{ needs.terraform.outputs.ssh_private_key }}" > ~/.ssh/k3s-key
+          cp terraform/modules/compute/poc-pre-prod-key.pem ~/.ssh/k3s-key
           chmod 600 ~/.ssh/k3s-key
           CONTROL_PLANE_IP="${{ needs.terraform.outputs.control_plane_ip }}"
           cat > ~/.ssh/config << EOF
