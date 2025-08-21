@@ -72,7 +72,7 @@ jobs:
         run: echo "TF_DIR=terraform/envs/pre-prod" >> $GITHUB_ENV
 
       - name: Terraform Init
-        run: terraform -chdir=$TF_DIR init
+        run: terraform -chdir=$TF_DIR init -backend-config=backend.tf
 
       - name: Terraform Validate
         run: terraform -chdir=$TF_DIR validate
