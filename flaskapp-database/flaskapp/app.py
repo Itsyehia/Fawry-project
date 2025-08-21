@@ -1,4 +1,7 @@
-from flask import Flask, render_template, json, request, redirect, session, url_for, jsonify
+from flask import (
+    Flask, render_template, json,
+    request, redirect, session, url_for, jsonify
+)
 from flaskext.mysql import MySQL
 import os
 
@@ -18,11 +21,10 @@ mysql.init_app(app)
 # External prefix presented by ingress
 BASE_PATH = "/flask"
 
-# Make BASE_PATH available in Jinja templates (if you want to use it there)
-
 
 @app.context_processor
 def inject_base_path():
+    """Make BASE_PATH available in Jinja templates"""
     return dict(BASE_PATH=BASE_PATH)
 
 
@@ -66,10 +68,8 @@ def signUp():
             if len(data) == 0:
                 conn.commit()
                 return jsonify({'message': 'User created successfully!'}), 200
-            else:
-                return jsonify({'error': str(data[0])}), 400
-        else:
-            return jsonify({'error': 'Enter all required fields'}), 400
+            return jsonify({'error': str(data[0])}), 400
+        return jsonify({'error': 'Enter all required fields'}), 400
     except Exception as e:
         print("signUp error:", str(e))  # log the error
         return jsonify({'error': str(e)}), 500
@@ -77,12 +77,12 @@ def signUp():
         try:
             if cursor:
                 cursor.close()
-        except BaseException:
+        except Exception:
             pass
         try:
             if conn:
                 conn.close()
-        except BaseException:
+        except Exception:
             pass
 
 
@@ -101,9 +101,11 @@ def validateLogin():
         if len(data) > 0 and data[0][3] == _password:
             session['user'] = data[0][0]
             return redirect_with_base('userHome')
-        else:
-            return render_template(
-                'error.html', error='Wrong Email address or Password')
+
+        return render_template(
+            'error.html',
+            error='Wrong Email address or Password'
+        )
     except Exception as e:
         print("validateLogin error:", str(e))
         return render_template('error.html', error=str(e))
@@ -111,12 +113,12 @@ def validateLogin():
         try:
             if cursor:
                 cursor.close()
-        except BaseException:
+        except Exception:
             pass
         try:
             if conn:
                 conn.close()
-        except BaseException:
+        except Exception:
             pass
 
 
@@ -124,8 +126,7 @@ def validateLogin():
 def userHome():
     if session.get('user'):
         return render_template('userHome.html')
-    else:
-        return render_template('error.html', error='Unauthorized Access')
+    return render_template('error.html', error='Unauthorized Access')
 
 
 @app.route('/getWish')
@@ -140,12 +141,17 @@ def getWish():
             wishes = cursor.fetchall()
 
             wishes_dict = [
-                {'Id': wish[0], 'Title': wish[1], 'Description': wish[2], 'Date': wish[4]}
+                {
+                    'Id': wish[0],
+                    'Title': wish[1],
+                    'Description': wish[2],
+                    'Date': wish[4]
+                }
                 for wish in wishes
             ]
             return json.dumps(wishes_dict)
-        else:
-            return render_template('error.html', error='Unauthorized Access')
+
+        return render_template('error.html', error='Unauthorized Access')
     except Exception as e:
         print("getWish error:", str(e))
         return render_template('error.html', error=str(e))
@@ -153,12 +159,12 @@ def getWish():
         try:
             if cursor:
                 cursor.close()
-        except BaseException:
+        except Exception:
             pass
         try:
             if conn:
                 conn.close()
-        except BaseException:
+        except Exception:
             pass
 
 
@@ -180,11 +186,10 @@ def addWish():
             if len(data) == 0:
                 conn.commit()
                 return redirect_with_base('userHome')
-            else:
-                return render_template(
-                    'error.html', error='An error occurred!')
-        else:
-            return render_template('error.html', error='Unauthorized Access')
+
+            return render_template('error.html', error='An error occurred!')
+
+        return render_template('error.html', error='Unauthorized Access')
     except Exception as e:
         print("addWish error:", str(e))
         traceback.print_exc()   # ✅ show full stack trace in logs
@@ -193,12 +198,12 @@ def addWish():
         try:
             if cursor:
                 cursor.close()
-        except BaseException:
+        except Exception:
             pass
         try:
             if conn:
                 conn.close()
-        except BaseException:
+        except Exception:
             pass
 
 
@@ -212,8 +217,7 @@ def logout():
 def showAddWish():
     if session.get('user'):
         return render_template('addWish.html')
-    else:
-        return render_template('error.html', error='Unauthorized Access')
+    return render_template('error.html', error='Unauthorized Access')
 
 
 @app.route('/healthz')
