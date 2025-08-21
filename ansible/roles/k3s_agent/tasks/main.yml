@@ -1,0 +1,77 @@
+---
+- name: Copy SSH key to worker node
+  copy:
+    src: "{{ playbook_dir }}/poc-pre-prod-key.pem"
+    dest: /home/ubuntu/poc-pre-prod-key.pem
+    mode: '0600'
+    owner: ubuntu
+    group: ubuntu
+
+- name: Stop existing K3s agent if running
+  systemd:
+    name: k3s-agent
+    state: stopped
+    enabled: no
+  ignore_errors: yes
+
+- name: Remove existing K3s agent files
+  file:
+    path: "{{ item }}"
+    state: absent
+  with_items:
+    - /usr/local/bin/k3s-agent
+    - /etc/systemd/system/k3s-agent.service
+    - /var/lib/rancher/k3s/agent
+  ignore_errors: yes
+
+- name: Read fresh node-token from control plane
+  slurp:
+    src: /var/lib/rancher/k3s/server/node-token
+  register: k3s_token
+  delegate_to: cp1
+
+- name: Set fact for node-token
+  set_fact:
+    k3s_node_token: "{{ k3s_token['content'] | b64decode | trim }}"
+
+- name: Install K3s agent (worker)
+  shell: |
+    curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="agent --server https://{{ hostvars['cp1']['private_ip'] }}:6443 --token {{ k3s_node_token }}" sh -
+  args:
+    creates: /usr/local/bin/k3s-agent
+
+- name: Wait for K3s agent to be ready
+  systemd:
+    name: k3s-agent
+    state: started
+  register: k3s_agent_status
+  retries: 30
+  delay: 10
+  until: k3s_agent_status is succeeded 
+
+- name: Install AWS CLI
+  apt:
+    name: awscli
+    state: present
+    update_cache: yes
+
+- name: Install Docker
+  apt:
+    name: docker.io
+    state: present
+    update_cache: yes
+
+- name: Ensure Docker service is running
+  service:
+    name: docker
+    state: started
+    enabled: yes
+
+- name: Authenticate Docker to ECR
+  shell: |
+    aws ecr get-login-password --region eu-west-1 | sudo docker login --username AWS --password-stdin 600865703207.dkr.ecr.eu-west-1.amazonaws.com
+  environment:
+    AWS_ACCESS_KEY_ID: "{{ lookup('env', 'AWS_ACCESS_KEY_ID') }}"
+    AWS_SECRET_ACCESS_KEY: "{{ lookup('env', 'AWS_SECRET_ACCESS_KEY') }}"
+  register: ecr_login
+  changed_when: "'Login Succeeded' in ecr_login.stdout" 
