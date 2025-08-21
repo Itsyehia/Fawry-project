@@ -205,7 +205,6 @@ jobs:
           push: true
           tags: |
             ${{ needs.terraform.outputs.ecr_repository_url }}:${{ env.IMAGE_TAG }}
-            ${{ needs.terraform.outputs.ecr_repository_url }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -216,7 +215,6 @@ jobs:
           push: true
           tags: |
             ${{ needs.terraform.outputs.ecr_repository_url }}-mysql:${{ env.IMAGE_TAG }}
-            ${{ needs.terraform.outputs.ecr_repository_url }}-mysql:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
