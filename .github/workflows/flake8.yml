@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+env:
+  DOCKER_BUILDKIT: 1
+  BUILDKIT_PROGRESS: plain
+
 jobs:
 
   test_and_coverage:
@@ -78,23 +82,19 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build & push flaskapp image
-        uses: docker/build-push-action@v4
-        with:
-          context: ./flaskapp-database/flaskapp
-          push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/flaskapp:latest
-          provenance: false
-          no-cache: true
-          build-args: |
-            BUILDKIT_PROGRESS=plain
+        run: |
+          docker build \
+            --progress=plain \
+            --no-cache \
+            -t ${{ secrets.DOCKER_USERNAME }}/flaskapp:latest \
+            ./flaskapp-database/flaskapp
+          docker push ${{ secrets.DOCKER_USERNAME }}/flaskapp:latest
 
       - name: Build & push mysql image
-        uses: docker/build-push-action@v4
-        with:
-          context: ./flaskapp-database/mysql
-          push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/mysql:latest
-          provenance: false
-          no-cache: true
-          build-args: |
-            BUILDKIT_PROGRESS=plain
+        run: |
+          docker build \
+            --progress=plain \
+            --no-cache \
+            -t ${{ secrets.DOCKER_USERNAME }}/mysql:latest \
+            ./flaskapp-database/mysql
+          docker push ${{ secrets.DOCKER_USERNAME }}/mysql:latest

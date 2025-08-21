@@ -306,18 +306,6 @@ kubectl logs -l app=flaskapp
 kubectl exec -it <flask-pod> -- curl localhost:5002/readiness
 ```
 
-## 📈 Performance Optimization
-
-### **Application Level**
-- **Database Connection Pooling**: Implement connection pooling
-- **Caching**: Add Redis for session and data caching
-- **Static Assets**: Use CDN for static files
-
-### **Kubernetes Level**
-- **Resource Requests/Limits**: Proper resource allocation
-- **Horizontal Pod Autoscaler**: Auto-scaling based on CPU/memory
-- **Persistent Volume**: SSD storage for database
-
 ## 🔄 Future Enhancements
 
 ### **Technical Improvements**
