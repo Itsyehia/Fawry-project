@@ -173,3 +173,111 @@ def test_get_wish_db_error(mock_mysql, client):
     mock_mysql.connect.side_effect = Exception("GetWish DB Error")
     response = client.get('/getWish')
     assert b"GetWish DB Error" in response.data
+
+def test_inject_base_path(client):
+    ctx = app.test_request_context("/")
+    ctx.push()
+    context = app.jinja_env.context_function(inject_base_path)()
+    assert "BASE_PATH" in context
+    ctx.pop()
+
+def test_redirect_with_base(client):
+    with client:
+        response = redirect_with_base("main")
+        assert response.status_code == 302
+        assert response.location.startswith("/flask/")
+
+@patch('app.mysql')
+def test_signup_db_error_returned(mock_mysql, client):
+    mock_conn = MagicMock()
+    mock_cursor = MagicMock()
+    mock_mysql.connect.return_value = mock_conn
+    mock_conn.cursor.return_value = mock_cursor
+    mock_cursor.fetchall.return_value = ["Duplicate user"]
+
+    response = client.post("/signUp", data={
+        "inputName": "John",
+        "inputEmail": "john@example.com",
+        "inputPassword": "pass123"
+    })
+    assert response.status_code == 400
+    assert b"Duplicate user" in response.data
+
+
+@patch('app.mysql')
+def test_signup_exception(mock_mysql, client):
+    mock_mysql.connect.side_effect = Exception("DB down")
+    response = client.post("/signUp", data={
+        "inputName": "John",
+        "inputEmail": "john@example.com",
+        "inputPassword": "pass123"
+    })
+    assert response.status_code == 500
+    assert b"DB down" in response.data
+
+
+@patch('app.mysql')
+def test_validate_login_wrong_password(mock_mysql, client):
+    mock_conn = MagicMock()
+    mock_cursor = MagicMock()
+    mock_mysql.connect.return_value = mock_conn
+    mock_conn.cursor.return_value = mock_cursor
+    mock_cursor.fetchall.return_value = [(1, "John", "john@example.com", "wrongpass")]
+
+    response = client.post("/validateLogin", data={
+        "inputEmail": "john@example.com",
+        "inputPassword": "pass123"
+    })
+    assert b"Wrong Email address" in response.data
+
+
+@patch('app.mysql')
+def test_validate_login_exception(mock_mysql, client):
+    mock_mysql.connect.side_effect = Exception("Login DB Error")
+    response = client.post("/validateLogin", data={
+        "inputEmail": "john@example.com",
+        "inputPassword": "pass123"
+    })
+    assert b"Login DB Error" in response.data
+
+
+@patch('app.mysql')
+def test_add_wish_returns_error_template(mock_mysql, client):
+    with client.session_transaction() as sess:
+        sess["user"] = 1
+    mock_conn = MagicMock()
+    mock_cursor = MagicMock()
+    mock_mysql.connect.return_value = mock_conn
+    mock_conn.cursor.return_value = mock_cursor
+    mock_cursor.fetchall.return_value = ["Some error"]
+
+    response = client.post("/addWish", data={
+        "inputTitle": "Wish",
+        "inputDescription": "Desc"
+    })
+    assert b"An error occurred" in response.data
+
+
+def test_healthz(client):
+    response = client.get("/healthz")
+    assert response.status_code == 200
+    assert b"ok" in response.data
+
+
+@patch('app.mysql')
+def test_readiness_success(mock_mysql, client):
+    mock_conn = MagicMock()
+    mock_cursor = MagicMock()
+    mock_mysql.connect.return_value = mock_conn
+    mock_conn.cursor.return_value = mock_cursor
+    response = client.get("/readiness")
+    assert response.status_code == 200
+    assert b"ready" in response.data
+
+
+@patch('app.mysql')
+def test_readiness_failure(mock_mysql, client):
+    mock_mysql.connect.side_effect = Exception("DB not reachable")
+    response = client.get("/readiness")
+    assert response.status_code == 503
+    assert b"not ready" in response.data
