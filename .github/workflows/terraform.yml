@@ -159,77 +159,76 @@ jobs:
           export AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
           export AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
           ansible-playbook -i ansible/inventory.yml ansible/playbook.yml --private-key ansible/poc-pre-prod-key.pem
+  deploy:
+    name: Build and Deploy Flask App to ECR
+    runs-on: ubuntu-latest
+    needs: terraform
 
-      - name: Deploy Application to K3s
-        run: |
-          # Copy kubeconfig from control plane
-          scp -o StrictHostKeyChecking=no -i private-key.pem ubuntu@${{ env.CONTROL_PLANE_IP }}:~/.kube/config ./kubeconfig
-          export KUBECONFIG=./kubeconfig
-          
-          # Update kubeconfig server address to use public IP
-          sed -i "s/127.0.0.1:6443/${{ env.CONTROL_PLANE_IP }}:6443/g" ./kubeconfig
-          
-          # Update ingress host with actual control plane IP
-          sed -i "s/CONTROL_PLANE_IP/${{ env.CONTROL_PLANE_IP }}/g" k8s/overlays/testing/ingress-patch.yaml
-          
-          # Deploy application using kustomize
-          kubectl apply -k k8s/overlays/testing
-          
-          # Wait for deployments to be ready
-          echo "Waiting for deployments to be ready..."
-          kubectl wait --for=condition=available --timeout=300s deployment/flaskapp || echo "Flask app deployment timeout"
-          kubectl wait --for=condition=available --timeout=300s deployment/mysql || echo "MySQL deployment timeout"
-          
-          # Wait for ingress controller to be ready
-          echo "Waiting for Ingress Controller to be ready..."
-          kubectl wait --namespace ingress-nginx --for=condition=ready pod --selector=app.kubernetes.io/component=controller --timeout=300s || echo "Ingress controller timeout"
-          
-          # Get service status
-          echo "=== Deployment Status ==="
-          kubectl get pods,services,ingress -A
-          
-          echo "=== Ingress Controller Status ==="
-          kubectl get pods,services -n ingress-nginx
-          
-          echo "=== Application URLs ==="
-          echo "Flask App (Ingress): http://${{ env.CONTROL_PLANE_IP }}.nip.io/flask/"
-          echo "Ingress Controller (Direct): http://${{ env.CONTROL_PLANE_IP }}:30080/flask/"
-          echo "Kubernetes API: https://${{ env.CONTROL_PLANE_IP }}:6443"
-          
-          # Test application health via ingress
-          echo "=== Health Check via Ingress ==="
-          sleep 60  # Give ingress time to configure
-          curl -f "http://${{ env.CONTROL_PLANE_IP }}:30080/flask/healthz" || echo "Ingress health check failed"
-          
-          # Test direct application access
-          echo "=== Direct Health Check ==="
-          kubectl port-forward service/flaskapp-service 8080:80 &
-          sleep 10
-          curl -f "http://localhost:8080/healthz" || echo "Direct health check failed"
-          kill %1 || true
+    env:
+      AWS_REGION: eu-west-1
+      IMAGE_TAG: ${{ github.sha }}
 
-      - name: Display Deployment Summary
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push Flask Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./flaskapp-database/flaskapp
+          push: true
+          tags: |
+            ${{ needs.terraform.outputs.ecr_repository_url }}:${{ env.IMAGE_TAG }}
+            ${{ needs.terraform.outputs.ecr_repository_url }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push MySQL Docker image  
+        uses: docker/build-push-action@v5
+        with:
+          context: ./flaskapp-database/mysql
+          push: true
+          tags: |
+            ${{ needs.terraform.outputs.ecr_repository_url }}-mysql:${{ env.IMAGE_TAG }}
+            ${{ needs.terraform.outputs.ecr_repository_url }}-mysql:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Update Kubernetes manifests with new image tags
         run: |
-          echo "=== DEPLOYMENT SUMMARY ==="
-          echo "Control Plane IP: ${{ env.CONTROL_PLANE_IP }}"
-          echo "Worker IP: ${{ env.WORKER_IP }}"
-          echo "ECR Repository: ${{ env.ECR_REPOSITORY_URL }}"
+          # Update Flask app image in kustomization
+          sed -i "s|newName: yehiashaikhoun/flaskapp|newName: ${{ needs.terraform.outputs.ecr_repository_url }}|g" k8s/overlays/testing/kustomization.yaml
+          sed -i "s|newTag: latest|newTag: ${{ env.IMAGE_TAG }}|g" k8s/overlays/testing/kustomization.yaml
+          
+          # Update MySQL image in kustomization  
+          sed -i "s|newName: docker.io/yehiashaikhoun/mysql|newName: ${{ needs.terraform.outputs.ecr_repository_url }}-mysql|g" k8s/overlays/testing/kustomization.yaml
+          
+          echo "Updated Kubernetes manifests:"
+          cat k8s/overlays/testing/kustomization.yaml
+
+      - name: Display ECR Repository Information
+        run: |
+          echo "=== ECR DEPLOYMENT SUMMARY ==="
+          echo "ECR Repository: ${{ needs.terraform.outputs.ecr_repository_url }}"
+          echo "Flask Image: ${{ needs.terraform.outputs.ecr_repository_url }}:${{ env.IMAGE_TAG }}"
+          echo "MySQL Image: ${{ needs.terraform.outputs.ecr_repository_url }}-mysql:${{ env.IMAGE_TAG }}"
+          echo "Image Tag: ${{ env.IMAGE_TAG }}"
           echo ""
-          echo "=== ACCESS URLs ==="
-          echo "Flask App (Ingress): http://${{ env.CONTROL_PLANE_IP }}.nip.io/flask/"
-          echo "Flask App (Direct via Ingress Controller): http://${{ env.CONTROL_PLANE_IP }}:30080/flask/"
-          echo "Kubernetes API: https://${{ env.CONTROL_PLANE_IP }}:6443"
-          echo "Ingress Controller Dashboard: http://${{ env.CONTROL_PLANE_IP }}:30080"
-          echo ""
-          echo "=== HEALTH ENDPOINTS ==="
-          echo "Liveness: http://${{ env.CONTROL_PLANE_IP }}.nip.io/flask/healthz"
-          echo "Readiness: http://${{ env.CONTROL_PLANE_IP }}.nip.io/flask/readiness"
-          echo ""
-          echo "=== SSH Access ==="
-          echo "Control Plane: ssh -i private-key.pem ubuntu@${{ env.CONTROL_PLANE_IP }}"
-          echo "Worker: ssh -i private-key.pem ubuntu@${{ env.CONTROL_PLANE_IP }}"
-          echo ""
-          echo "=== KUBERNETES COMMANDS ==="
-          echo "Get Pods: kubectl get pods -A"
-          echo "Get Ingress: kubectl get ingress"
-          echo "Ingress Controller Logs: kubectl logs -n ingress-nginx -l app.kubernetes.io/component=controller"
+          echo "=== NEXT STEPS ==="
+          echo "Images are now available in ECR and ready for Kubernetes deployment"
+      
+      
