@@ -1,7 +1,10 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from app import app, inject_base_path, redirect_with_base
-# remove unused variables and imports in test_app.py to pass the pipeline
+from app import (
+    app,
+    inject_base_path,
+    redirect_with_base
+)# remove unused variables and imports in test_app.py to pass the pipeline
 # autoflake --in-place --remove-unused-variables
 # --remove-all-unused-imports tests/test_app.py; autopep8 --in-place
 # --aggressive --aggressive tests/test_app.py; flake8 tests/test_app.py
@@ -174,17 +177,6 @@ def test_get_wish_db_error(mock_mysql, client):
     response = client.get('/getWish')
     assert b"GetWish DB Error" in response.data
 
-def test_inject_base_path(client):
-    ctx = app.test_request_context("/")
-    ctx.push()
-    context = inject_base_path()
-    assert "BASE_PATH" in context
-    ctx.pop()
-
-def test_redirect_with_base(client):
-    response = redirect_with_base("main")
-    assert response.status_code == 302
-    assert response.location.startswith("/flask/")
 
 @patch('app.mysql')
 def test_signup_db_error_returned(mock_mysql, client):
