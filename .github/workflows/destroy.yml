@@ -1,42 +1,173 @@
-name: Terraform Destroy
+name: Destroy Infrastructure
 
 on:
   workflow_dispatch:
     inputs:
-      env:
-        description: "Environment to destroy (e.g., dev, prod)"
+      confirmation:
+        description: 'Type "DESTROY" to confirm infrastructure destruction'
         required: true
-        default: "dev"
+        type: string
+      destroy_s3_backend:
+        description: 'Also destroy S3 backend bucket (WARNING: This will delete Terraform state!)'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
-  terraform-destroy:
-    name: Destroy Terraform Infrastructure
+  destroy:
+    name: Destroy Infrastructure
     runs-on: ubuntu-latest
-
+    
     env:
-      AWS_REGION: eu-west-1
-      TF_VAR_env: ${{ github.event.inputs.env }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      TF_DIR: terraform/envs/pre-prod
 
     steps:
+      - name: Validate Confirmation
+        run: |
+          if [ "${{ github.event.inputs.confirmation }}" != "DESTROY" ]; then
+            echo "❌ Confirmation failed. You must type 'DESTROY' exactly to proceed."
+            exit 1
+          fi
+          echo "✅ Confirmation validated. Proceeding with infrastructure destruction."
+
       - name: Checkout repository
         uses: actions/checkout@v3
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.9.0
+          terraform_version: 1.8.4
+
+      - name: Get AWS Account ID
+        run: |
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          BUCKET_NAME="poc-prod-vpc-logs-${ACCOUNT_ID}-preprod"
+          echo "ACCOUNT_ID=$ACCOUNT_ID" >> $GITHUB_ENV
+          echo "BUCKET_NAME=$BUCKET_NAME" >> $GITHUB_ENV
 
       - name: Terraform Init
-        working-directory: terraform
-        run: terraform init
+        run: terraform -chdir=$TF_DIR init
+
+      - name: Get ECR Repository URL
+        id: get_ecr
+        run: |
+          ECR_REPO_URL=$(terraform -chdir=$TF_DIR output -raw ecr_repository_url 2>/dev/null || echo "")
+          if [ -n "$ECR_REPO_URL" ]; then
+            echo "ECR_REPO_URL=$ECR_REPO_URL" >> $GITHUB_ENV
+            echo "ecr_repository_url=$ECR_REPO_URL" >> $GITHUB_OUTPUT
+          else
+            echo "No ECR repository found or already destroyed."
+          fi
+        continue-on-error: true
+
+      - name: Clean ECR Repository
+        if: env.ECR_REPO_URL != ''
+        run: |
+          echo "🧹 Cleaning ECR repository: $ECR_REPO_URL"
+          
+          # Get repository name from URL
+          REPO_NAME=$(echo $ECR_REPO_URL | cut -d'/' -f2)
+          
+          # List and delete all images in the repository
+          aws ecr list-images --repository-name $REPO_NAME --region eu-west-1 --query 'imageIds[*]' --output json > images.json
+          
+          if [ -s images.json ] && [ "$(cat images.json)" != "[]" ]; then
+            echo "Deleting images from ECR repository..."
+            aws ecr batch-delete-image --repository-name $REPO_NAME --region eu-west-1 --image-ids file://images.json
+            echo "✅ ECR images deleted successfully"
+          else
+            echo "No images found in ECR repository"
+          fi
+        continue-on-error: true
 
       - name: Terraform Destroy
-        working-directory: terraform
-        run: terraform destroy -auto-approve
+        run: |
+          echo "🔥 Starting Terraform destroy..."
+          terraform -chdir=$TF_DIR destroy -auto-approve
+          echo "✅ Terraform destroy completed successfully"
+
+      - name: Destroy S3 Backend Bucket
+        if: github.event.inputs.destroy_s3_backend == 'true'
+        run: |
+          echo "🗑️ Destroying S3 backend bucket: $BUCKET_NAME"
+          
+          # Check if bucket exists
+          if aws s3api head-bucket --bucket $BUCKET_NAME --region eu-west-1 2>/dev/null; then
+            echo "Bucket exists. Proceeding with deletion..."
+            
+            # Delete all versions and delete markers
+            echo "Deleting all object versions..."
+            aws s3api list-object-versions --bucket $BUCKET_NAME --region eu-west-1 --output json --query '{Objects: Versions[].{Key:Key,VersionId:VersionId}}' > versions.json
+            aws s3api list-object-versions --bucket $BUCKET_NAME --region eu-west-1 --output json --query '{Objects: DeleteMarkers[].{Key:Key,VersionId:VersionId}}' > delete-markers.json
+            
+            if [ -s versions.json ] && [ "$(cat versions.json | jq '.Objects | length')" -gt 0 ]; then
+              aws s3api delete-objects --bucket $BUCKET_NAME --region eu-west-1 --delete file://versions.json
+            fi
+            
+            if [ -s delete-markers.json ] && [ "$(cat delete-markers.json | jq '.Objects | length')" -gt 0 ]; then
+              aws s3api delete-objects --bucket $BUCKET_NAME --region eu-west-1 --delete file://delete-markers.json
+            fi
+            
+            # Delete the bucket
+            aws s3api delete-bucket --bucket $BUCKET_NAME --region eu-west-1
+            echo "✅ S3 backend bucket deleted successfully"
+          else
+            echo "S3 backend bucket does not exist or already deleted"
+          fi
+        continue-on-error: true
+
+      - name: Cleanup Local Files
+        run: |
+          echo "🧹 Cleaning up local files..."
+          find . -name "*.pem" -type f -delete
+          find . -name "terraform_outputs.json" -type f -delete
+          find . -name "images.json" -type f -delete
+          find . -name "versions.json" -type f -delete
+          find . -name "delete-markers.json" -type f -delete
+          echo "✅ Local cleanup completed"
+
+      - name: Destruction Summary
+        run: |
+          echo "🎉 Infrastructure Destruction Summary"
+          echo "===================================="
+          echo "✅ Terraform infrastructure destroyed"
+          if [ "${{ github.event.inputs.destroy_s3_backend }}" == "true" ]; then
+            echo "✅ S3 backend bucket destroyed"
+          else
+            echo "⚠️  S3 backend bucket preserved (contains Terraform state)"
+          fi
+          echo "✅ ECR repository cleaned"
+          echo "✅ Local files cleaned up"
+          echo ""
+          echo "🔒 Resources that were destroyed:"
+          echo "  - EC2 instances (K3s cluster)"
+          echo "  - VPC and networking components"
+          echo "  - Security groups"
+          echo "  - SSH key pairs"
+          echo "  - ECR repository and images"
+          if [ "${{ github.event.inputs.destroy_s3_backend }}" == "true" ]; then
+            echo "  - S3 backend bucket and Terraform state"
+          fi
+          echo ""
+          echo "⚠️  Manual cleanup may be required for:"
+          echo "  - Any resources created outside of Terraform"
+          echo "  - CloudWatch logs (if logging module was used)"
+          echo "  - Any persistent volumes or snapshots"
+
+  notify:
+    name: Notify Destruction Complete
+    runs-on: ubuntu-latest
+    needs: destroy
+    if: always()
+    
+    steps:
+      - name: Destruction Status
+        run: |
+          if [ "${{ needs.destroy.result }}" == "success" ]; then
+            echo "🎉 Infrastructure destruction completed successfully!"
+          else
+            echo "❌ Infrastructure destruction failed or was cancelled."
+            echo "Please check the logs and manually clean up any remaining resources."
+          fi
