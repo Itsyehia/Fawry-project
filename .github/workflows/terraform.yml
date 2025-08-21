@@ -217,7 +217,7 @@ jobs:
             ${{ needs.terraform.outputs.ecr_repository_url }}:mysql-${{ env.IMAGE_TAG }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          
+
 
       - name: Display ECR Repository Information
         run: |
@@ -229,5 +229,52 @@ jobs:
           echo ""
           echo "=== NEXT STEPS ==="
           echo "Images are now available in ECR and ready for Kubernetes deployment"
-      
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Setup SSH access to K3s
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ needs.terraform.outputs.ssh_private_key }}" > ~/.ssh/k3s-key
+          chmod 600 ~/.ssh/k3s-key
+          CONTROL_PLANE_IP="${{ needs.terraform.outputs.control_plane_ip }}"
+          cat > ~/.ssh/config << EOF
+          Host k3s-control
+            HostName $CONTROL_PLANE_IP
+            User ubuntu
+            IdentityFile ~/.ssh/k3s-key
+            StrictHostKeyChecking no
+          EOF
+          echo "SSH config contents:"
+          cat ~/.ssh/config
+
+      - name: Debug SSH Info
+        run: |
+          echo "Control plane IP: ${{ needs.terraform.outputs.control_plane_ip }}"
+          ls -l ~/.ssh/
+          cat ~/.ssh/config
+
+      - name: Copy kubeconfig from K3s
+        run: |
+          mkdir -p ~/.kube
+          ssh k3s-control "sudo cat /etc/rancher/k3s/k3s.yaml" > ~/.kube/config
+          echo "Original kubeconfig:"
+          cat ~/.kube/config
+          sed -i "s/127.0.0.1/${{ needs.terraform.outputs.control_plane_ip }}/g" ~/.kube/config
+          sed -i "s/localhost/${{ needs.terraform.outputs.control_plane_ip }}/g" ~/.kube/config
+          echo "Updated kubeconfig:"
+          cat ~/.kube/config
+
+      - name: Wait for kubectl to connect to K3s
+        run: |
+          for i in {1..30}; do
+            if kubectl get nodes --request-timeout=10s >/dev/null 2>&1; then
+              echo "K3s API server is ready for kubectl!"
+              break
+            fi
+            echo "Attempt $i: kubectl not ready yet, waiting..."
+            sleep 10
+          done
       
