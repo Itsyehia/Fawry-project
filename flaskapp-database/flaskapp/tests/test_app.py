@@ -177,15 +177,14 @@ def test_get_wish_db_error(mock_mysql, client):
 def test_inject_base_path(client):
     ctx = app.test_request_context("/")
     ctx.push()
-    context = app.jinja_env.context_function(inject_base_path)()
+    context = inject_base_path()
     assert "BASE_PATH" in context
     ctx.pop()
 
 def test_redirect_with_base(client):
-    with client:
-        response = redirect_with_base("main")
-        assert response.status_code == 302
-        assert response.location.startswith("/flask/")
+    response = redirect_with_base("main")
+    assert response.status_code == 302
+    assert response.location.startswith("/flask/")
 
 @patch('app.mysql')
 def test_signup_db_error_returned(mock_mysql, client):
