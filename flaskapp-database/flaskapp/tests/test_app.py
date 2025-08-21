@@ -28,10 +28,11 @@ def test_show_signup_page(client):
 
 
 def test_signup_missing_fields(client):
-    """POST /signUp with missing data should return error page"""
+    """POST /signUp with missing data should return error JSON"""
     response = client.post('/signUp', data={})
     assert response.status_code == 400
-    assert b"Enter the required fields" in response.data
+    data = response.get_json()
+    assert data["error"] == "Enter all required fields"
 
 
 @patch('app.mysql')
