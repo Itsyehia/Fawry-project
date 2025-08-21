@@ -234,10 +234,22 @@ jobs:
         with:
           version: 'latest'
 
+
+      - name: Upload SSH Key as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ssh-key
+          path: private-key.pem
+
+      - name: Download SSH Key Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ssh-key
+          path: ~/.ssh
+
       - name: Setup SSH access to K3s
         run: |
-          mkdir -p ~/.ssh
-          cp terraform/modules/compute/poc-pre-prod-key.pem ~/.ssh/k3s-key
+          mv ~/.ssh/private-key.pem ~/.ssh/k3s-key
           chmod 600 ~/.ssh/k3s-key
           CONTROL_PLANE_IP="${{ needs.terraform.outputs.control_plane_ip }}"
           cat > ~/.ssh/config << EOF
