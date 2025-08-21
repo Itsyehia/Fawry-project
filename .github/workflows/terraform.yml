@@ -77,9 +77,6 @@ jobs:
       - name: Terraform Validate
         run: terraform -chdir=$TF_DIR validate
 
-      - name: Import existing EC2 Key Pair if needed
-        run: terraform -chdir=$TF_DIR import -input=false 'module.compute.aws_key_pair.this' "poc-pre-prod-key" || echo "Key pair already imported or does not exist"
-
       - name: Terraform Plan
         run: terraform -chdir=$TF_DIR plan -out=tfplan
 
