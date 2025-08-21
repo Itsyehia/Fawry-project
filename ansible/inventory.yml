@@ -1,0 +1,11 @@
+all:
+  children:
+    controlplane:
+      hosts:
+        cp1:
+          ansible_host: 34.244.254.112
+          private_ip: 10.0.1.7  
+    worker:
+      hosts:
+        worker1:
+          ansible_host: 108.130.38.203

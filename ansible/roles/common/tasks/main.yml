@@ -1,0 +1,19 @@
+---
+- name: Update apt cache
+  shell: apt update
+  when: ansible_os_family == 'Debian'
+  async: 300
+  poll: 10
+  register: apt_update_result
+  retries: 3
+  delay: 10
+  until: apt_update_result is succeeded
+
+- name: Install required packages
+  apt:
+    name:
+      - curl
+      - apt-transport-https
+      - ca-certificates
+    state: present
+  when: ansible_os_family == 'Debian' 
