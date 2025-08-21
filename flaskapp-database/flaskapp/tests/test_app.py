@@ -1,11 +1,6 @@
 import pytest
 from unittest.mock import patch, MagicMock
 from app import app
-# remove unused variables and imports in test_app.py to pass the pipeline
-# autoflake --in-place --remove-unused-variables
-# --remove-all-unused-imports tests/test_app.py; autopep8 --in-place
-# --aggressive --aggressive tests/test_app.py; flake8 tests/test_app.py
-
 
 @pytest.fixture
 def client():
