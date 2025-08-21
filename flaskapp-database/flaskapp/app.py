@@ -19,9 +19,12 @@ mysql.init_app(app)
 BASE_PATH = "/flask"
 
 # Make BASE_PATH available in Jinja templates (if you want to use it there)
+
+
 @app.context_processor
 def inject_base_path():
     return dict(BASE_PATH=BASE_PATH)
+
 
 def redirect_with_base(endpoint, **values):
     """
@@ -30,17 +33,21 @@ def redirect_with_base(endpoint, **values):
     """
     return redirect(BASE_PATH + url_for(endpoint, **values))
 
+
 @app.route("/")
 def main():
     return render_template('index.html')
+
 
 @app.route('/showSignUp')
 def showSignUp():
     return render_template('signup.html')
 
+
 @app.route('/showSignIn')
 def showSignIn():
     return render_template('signin.html')
+
 
 @app.route('/signUp', methods=['POST'])
 def signUp():
@@ -68,11 +75,15 @@ def signUp():
         return jsonify({'error': str(e)}), 500
     finally:
         try:
-            if cursor: cursor.close()
-        except: pass
+            if cursor:
+                cursor.close()
+        except BaseException:
+            pass
         try:
-            if conn: conn.close()
-        except: pass
+            if conn:
+                conn.close()
+        except BaseException:
+            pass
 
 
 @app.route('/validateLogin', methods=['POST'])
@@ -91,17 +102,23 @@ def validateLogin():
             session['user'] = data[0][0]
             return redirect_with_base('userHome')
         else:
-            return render_template('error.html', error='Wrong Email address or Password')
+            return render_template(
+                'error.html', error='Wrong Email address or Password')
     except Exception as e:
         print("validateLogin error:", str(e))
         return render_template('error.html', error=str(e))
     finally:
         try:
-            if cursor: cursor.close()
-        except: pass
+            if cursor:
+                cursor.close()
+        except BaseException:
+            pass
         try:
-            if conn: conn.close()
-        except: pass
+            if conn:
+                conn.close()
+        except BaseException:
+            pass
+
 
 @app.route('/userHome')
 def userHome():
@@ -109,6 +126,7 @@ def userHome():
         return render_template('userHome.html')
     else:
         return render_template('error.html', error='Unauthorized Access')
+
 
 @app.route('/getWish')
 def getWish():
@@ -133,11 +151,16 @@ def getWish():
         return render_template('error.html', error=str(e))
     finally:
         try:
-            if cursor: cursor.close()
-        except: pass
+            if cursor:
+                cursor.close()
+        except BaseException:
+            pass
         try:
-            if conn: conn.close()
-        except: pass
+            if conn:
+                conn.close()
+        except BaseException:
+            pass
+
 
 @app.route('/addWish', methods=['POST'])
 def addWish():
@@ -158,7 +181,8 @@ def addWish():
                 conn.commit()
                 return redirect_with_base('userHome')
             else:
-                return render_template('error.html', error='An error occurred!')
+                return render_template(
+                    'error.html', error='An error occurred!')
         else:
             return render_template('error.html', error='Unauthorized Access')
     except Exception as e:
@@ -167,18 +191,22 @@ def addWish():
         return render_template('error.html', error=str(e)), 500
     finally:
         try:
-            if cursor: cursor.close()
-        except: 
+            if cursor:
+                cursor.close()
+        except BaseException:
             pass
         try:
-            if conn: conn.close()
-        except: 
+            if conn:
+                conn.close()
+        except BaseException:
             pass
+
 
 @app.route('/logout')
 def logout():
     session.pop('user', None)
     return redirect_with_base('main')
+
 
 @app.route('/showAddWish')
 def showAddWish():
@@ -186,8 +214,6 @@ def showAddWish():
         return render_template('addWish.html')
     else:
         return render_template('error.html', error='Unauthorized Access')
-
-
 
 
 @app.route('/healthz')
