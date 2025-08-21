@@ -18,3 +18,8 @@ variable "subnet_ids" {
   description = "List of subnet IDs"
   type        = list(string)
 }
+
+variable "k3s_security_group_id" {
+  description = "K3s security group ID from network module"
+  type        = string
+}

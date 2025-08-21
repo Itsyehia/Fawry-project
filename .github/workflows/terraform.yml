@@ -1,0 +1,234 @@
+name: Terraform & Ansible CI/CD
+
+on:
+  push:
+    branches:
+      - pre-prod
+    paths:
+      - 'terraform/envs/**'
+      - 'terraform/modules/**'
+      - 'ansible/**'
+      - 'flaskapp-database/**'
+      - 'k8s/**'
+      - '.github/workflows/terraform.yml'
+  workflow_dispatch:
+
+jobs:
+  terraform:
+    name: Terraform & Ansible
+    runs-on: ubuntu-latest
+
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.8.4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Ansible and kubectl
+        run: |
+          python -m pip install --upgrade pip
+          pip install ansible boto3
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+
+      - name: Create S3 Backend Bucket
+        run: |
+          aws s3api head-bucket --bucket poc-prod-vpc-logs-709efebc --region eu-west-1 2>/dev/null || {
+            echo "Creating S3 bucket: poc-prod-vpc-logs-709efebc"
+            aws s3api create-bucket \
+              --bucket poc-prod-vpc-logs-709efebc \
+              --region eu-west-1 \
+              --create-bucket-configuration LocationConstraint=eu-west-1
+            aws s3api put-bucket-versioning \
+              --bucket poc-prod-vpc-logs-709efebc \
+              --versioning-configuration Status=Enabled
+            aws s3api put-bucket-encryption \
+              --bucket poc-prod-vpc-logs-709efebc \
+              --server-side-encryption-configuration '{
+                "Rules": [
+                  { "ApplyServerSideEncryptionByDefault": { "SSEAlgorithm": "AES256" } }
+                ]
+              }'
+          }
+
+      - name: Set Environment Path
+        run: echo "TF_DIR=terraform/envs/pre-prod" >> $GITHUB_ENV
+
+      - name: Terraform Init
+        run: terraform -chdir=$TF_DIR init
+
+      - name: Terraform Validate
+        run: terraform -chdir=$TF_DIR validate
+
+      - name: Import existing EC2 Key Pair if needed
+        run: terraform -chdir=$TF_DIR import -input=false 'module.compute.aws_key_pair.this' "poc-pre-prod-key" || echo "Key pair already imported or does not exist"
+
+      - name: Terraform Plan
+        run: terraform -chdir=$TF_DIR plan -out=tfplan
+
+      - name: Terraform Apply
+        id: apply
+        run: terraform -chdir=$TF_DIR apply -auto-approve tfplan
+        continue-on-error: true
+
+      - name: Handle Terraform Failure
+        if: steps.apply.outcome == 'failure'
+        run: |
+          echo "Terraform apply failed. Attempting rollback..."
+          terraform -chdir=$TF_DIR destroy -auto-approve
+          exit 1
+
+      - name: Capture Terraform Outputs
+        id: tf_outputs
+        run: |
+          terraform -chdir=$TF_DIR output -json > terraform_outputs.json
+          CONTROL_PLANE_IP=$(jq -r '.ec2_public_ips.value[0]' terraform_outputs.json)
+          WORKER_IP=$(jq -r '.ec2_public_ips.value[1]' terraform_outputs.json)
+          CONTROL_PLANE_PRIVATE_IP=$(jq -r '.ec2_private_ips.value[0]' terraform_outputs.json)
+          WORKER_PRIVATE_IP=$(jq -r '.ec2_private_ips.value[1]' terraform_outputs.json)
+          ECR_REPOSITORY_URL=$(jq -r '.ecr_repository_url.value' terraform_outputs.json)
+
+          echo "CONTROL_PLANE_IP=$CONTROL_PLANE_IP" >> $GITHUB_ENV
+          echo "WORKER_IP=$WORKER_IP" >> $GITHUB_ENV
+          echo "CONTROL_PLANE_PRIVATE_IP=$CONTROL_PLANE_PRIVATE_IP" >> $GITHUB_ENV
+          echo "WORKER_PRIVATE_IP=$WORKER_PRIVATE_IP" >> $GITHUB_ENV
+          echo "ECR_REPOSITORY_URL=$ECR_REPOSITORY_URL" >> $GITHUB_ENV
+
+          echo "control_plane_ip=$CONTROL_PLANE_IP" >> $GITHUB_OUTPUT
+          echo "worker_ip=$WORKER_IP" >> $GITHUB_OUTPUT
+          echo "ecr_repository_url=$ECR_REPOSITORY_URL" >> $GITHUB_OUTPUT
+
+      - name: Copy Terraform SSH Private Key
+        run: |
+          cp terraform/modules/compute/poc-pre-prod-key.pem private-key.pem
+          cp terraform/modules/compute/poc-pre-prod-key.pem ansible/poc-pre-prod-key.pem
+          chmod 600 private-key.pem ansible/poc-pre-prod-key.pem
+
+      - name: Generate Ansible Inventory
+        run: |
+          cd ansible
+          cat > inventory.yml << EOF
+          all:
+            children:
+              controlplane:
+                hosts:
+                  cp1:
+                    ansible_host: ${{ env.CONTROL_PLANE_IP }}
+                    ansible_user: ubuntu
+                    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+                    private_ip: ${{ env.CONTROL_PLANE_PRIVATE_IP }}
+              worker:
+                hosts:
+                  worker1:
+                    ansible_host: ${{ env.WORKER_IP }}
+                    ansible_user: ubuntu
+                    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+                    private_ip: ${{ env.WORKER_PRIVATE_IP }}
+          EOF
+          cat inventory.yml
+
+      - name: Wait for SSH to be available
+        run: |
+          echo "Waiting for SSH to be available on instances..."
+          sleep 60
+          until ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no -i private-key.pem ubuntu@${{ env.CONTROL_PLANE_IP }} 'echo SSH ready'; do
+            echo "Waiting for control plane SSH..."
+            sleep 30
+          done
+          until ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no -i private-key.pem ubuntu@${{ env.WORKER_IP }} 'echo SSH ready'; do
+            echo "Waiting for worker SSH..."
+            sleep 30
+          done
+
+      - name: Run Ansible Playbook
+        run: |
+          export AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+          export AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          ansible-playbook -i ansible/inventory.yml ansible/playbook.yml --private-key ansible/poc-pre-prod-key.pem
+
+      - name: Deploy Application to K3s
+        run: |
+          # Copy kubeconfig from control plane
+          scp -o StrictHostKeyChecking=no -i private-key.pem ubuntu@${{ env.CONTROL_PLANE_IP }}:~/.kube/config ./kubeconfig
+          export KUBECONFIG=./kubeconfig
+          
+          # Update kubeconfig server address to use public IP
+          sed -i "s/127.0.0.1:6443/${{ env.CONTROL_PLANE_IP }}:6443/g" ./kubeconfig
+          
+          # Update ingress host with actual control plane IP
+          sed -i "s/CONTROL_PLANE_IP/${{ env.CONTROL_PLANE_IP }}/g" k8s/overlays/testing/ingress-patch.yaml
+          
+          # Deploy application using kustomize
+          kubectl apply -k k8s/overlays/testing
+          
+          # Wait for deployments to be ready
+          echo "Waiting for deployments to be ready..."
+          kubectl wait --for=condition=available --timeout=300s deployment/flaskapp || echo "Flask app deployment timeout"
+          kubectl wait --for=condition=available --timeout=300s deployment/mysql || echo "MySQL deployment timeout"
+          
+          # Wait for ingress controller to be ready
+          echo "Waiting for Ingress Controller to be ready..."
+          kubectl wait --namespace ingress-nginx --for=condition=ready pod --selector=app.kubernetes.io/component=controller --timeout=300s || echo "Ingress controller timeout"
+          
+          # Get service status
+          echo "=== Deployment Status ==="
+          kubectl get pods,services,ingress -A
+          
+          echo "=== Ingress Controller Status ==="
+          kubectl get pods,services -n ingress-nginx
+          
+          echo "=== Application URLs ==="
+          echo "Flask App (Ingress): http://${{ env.CONTROL_PLANE_IP }}.nip.io/flask/"
+          echo "Ingress Controller (Direct): http://${{ env.CONTROL_PLANE_IP }}:30080/flask/"
+          echo "Kubernetes API: https://${{ env.CONTROL_PLANE_IP }}:6443"
+          
+          # Test application health via ingress
+          echo "=== Health Check via Ingress ==="
+          sleep 60  # Give ingress time to configure
+          curl -f "http://${{ env.CONTROL_PLANE_IP }}:30080/flask/healthz" || echo "Ingress health check failed"
+          
+          # Test direct application access
+          echo "=== Direct Health Check ==="
+          kubectl port-forward service/flaskapp-service 8080:80 &
+          sleep 10
+          curl -f "http://localhost:8080/healthz" || echo "Direct health check failed"
+          kill %1 || true
+
+      - name: Display Deployment Summary
+        run: |
+          echo "=== DEPLOYMENT SUMMARY ==="
+          echo "Control Plane IP: ${{ env.CONTROL_PLANE_IP }}"
+          echo "Worker IP: ${{ env.WORKER_IP }}"
+          echo "ECR Repository: ${{ env.ECR_REPOSITORY_URL }}"
+          echo ""
+          echo "=== ACCESS URLs ==="
+          echo "Flask App (Ingress): http://${{ env.CONTROL_PLANE_IP }}.nip.io/flask/"
+          echo "Flask App (Direct via Ingress Controller): http://${{ env.CONTROL_PLANE_IP }}:30080/flask/"
+          echo "Kubernetes API: https://${{ env.CONTROL_PLANE_IP }}:6443"
+          echo "Ingress Controller Dashboard: http://${{ env.CONTROL_PLANE_IP }}:30080"
+          echo ""
+          echo "=== HEALTH ENDPOINTS ==="
+          echo "Liveness: http://${{ env.CONTROL_PLANE_IP }}.nip.io/flask/healthz"
+          echo "Readiness: http://${{ env.CONTROL_PLANE_IP }}.nip.io/flask/readiness"
+          echo ""
+          echo "=== SSH Access ==="
+          echo "Control Plane: ssh -i private-key.pem ubuntu@${{ env.CONTROL_PLANE_IP }}"
+          echo "Worker: ssh -i private-key.pem ubuntu@${{ env.CONTROL_PLANE_IP }}"
+          echo ""
+          echo "=== KUBERNETES COMMANDS ==="
+          echo "Get Pods: kubectl get pods -A"
+          echo "Get Ingress: kubectl get ingress"
+          echo "Ingress Controller Logs: kubectl logs -n ingress-nginx -l app.kubernetes.io/component=controller"

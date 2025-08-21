@@ -71,11 +71,29 @@ resource "aws_security_group" "k3s" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
+  # Flask application port
+  ingress {
+    from_port   = 5002
+    to_port     = 5002
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow access to Flask app"
+  }
+  # NodePort range for Kubernetes services
   ingress {
     from_port   = 30000
     to_port     = 32767
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow access to Kubernetes NodePort services"
+  }
+  # Allow K3s internal communication
+  ingress {
+    from_port   = 0
+    to_port     = 65535
+    protocol    = "tcp"
+    self        = true
+    description = "Allow internal cluster communication"
   }
   egress {
     from_port   = 0

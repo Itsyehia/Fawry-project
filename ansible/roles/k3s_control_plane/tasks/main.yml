@@ -61,4 +61,34 @@
     AWS_ACCESS_KEY_ID: "{{ lookup('env', 'AWS_ACCESS_KEY_ID') }}"
     AWS_SECRET_ACCESS_KEY: "{{ lookup('env', 'AWS_SECRET_ACCESS_KEY') }}"
   register: ecr_login
-  changed_when: "'Login Succeeded' in ecr_login.stdout" 
+  changed_when: "'Login Succeeded' in ecr_login.stdout"
+
+- name: Wait for K3s to be fully ready
+  shell: "kubectl get nodes"
+  register: nodes_ready
+  retries: 30
+  delay: 10
+  until: nodes_ready.rc == 0 and 'Ready' in nodes_ready.stdout
+
+- name: Install Nginx Ingress Controller
+  shell: |
+    kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.8.2/deploy/static/provider/baremetal/deploy.yaml
+  register: ingress_install
+  changed_when: "'created' in ingress_install.stdout or 'configured' in ingress_install.stdout"
+
+- name: Wait for Ingress Controller to be ready
+  shell: |
+    kubectl wait --namespace ingress-nginx \
+      --for=condition=ready pod \
+      --selector=app.kubernetes.io/component=controller \
+      --timeout=300s
+  register: ingress_ready
+  retries: 10
+  delay: 30
+  until: ingress_ready.rc == 0
+
+- name: Patch Ingress Controller service to use NodePort
+  shell: |
+    kubectl patch service ingress-nginx-controller -n ingress-nginx -p '{"spec":{"type":"NodePort","ports":[{"port":80,"protocol":"TCP","targetPort":80,"nodePort":30080},{"port":443,"protocol":"TCP","targetPort":443,"nodePort":30443}]}}'
+  register: ingress_patch
+  changed_when: "'patched' in ingress_patch.stdout" 

@@ -19,55 +19,7 @@ resource "local_file" "private_key_pem" {
   file_permission = "0600"
 }
 
-resource "aws_security_group" "this" {
-  name        = "poc-${var.env}-sg"
-  vpc_id      = var.vpc_id
-  description = "Allow SSH"
-
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  # Allow Kubernetes API traffic between instances
-  ingress {
-    from_port   = 6443
-    to_port     = 6443
-    protocol    = "tcp"
-    self        = true
-  }
-
-  # Allow public access to Kubernetes API (for testing)
-  ingress {
-    from_port   = 6443
-    to_port     = 6443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-    description = "Allow public access to Kubernetes API"
-  }
-
-  # Allow public access to NodePort 30080 (portfolio app)
-  ingress {
-    from_port   = 30080
-    to_port     = 30080
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-    description = "Allow public access to portfolio app NodePort"
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name = "poc-${var.env}-sg"
-  }
-}
+# Security group is now managed by the network module
 
 data "aws_ami" "ubuntu" {
   most_recent = true
@@ -90,7 +42,7 @@ resource "aws_instance" "this" {
   ami = data.aws_ami.ubuntu.id
   instance_type = "t3.small"
   subnet_id     = element(var.subnet_ids, count.index)
-  vpc_security_group_ids = [aws_security_group.this.id]
+  vpc_security_group_ids = [var.k3s_security_group_id]
   key_name      = aws_key_pair.this.key_name
   associate_public_ip_address = true
 

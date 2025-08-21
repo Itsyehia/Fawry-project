@@ -115,7 +115,111 @@ Manages sensitive data like database passwords:
 
 ## 🔄 CI/CD Pipeline
 
-The GitHub Actions workflow (`.github/workflows/flake8.yml`) implements a **three-stage pipeline**:
+The project includes **two comprehensive CI/CD pipelines**:
+
+### **Flask Application Pipeline** (`.github/workflows/flake8.yml`)
+A **three-stage pipeline** for the Flask application:
+
+### **Infrastructure Pipeline** (`.github/workflows/terraform.yml`)
+A **complete infrastructure-as-code pipeline** that provisions AWS resources and deploys the application:
+
+## 🏗️ Infrastructure Pipeline (terraform.yml)
+
+### **Stage 1: Infrastructure Provisioning** (`terraform`)
+```yaml
+steps:
+  - Setup Terraform 1.8.4
+  - Create S3 backend bucket
+  - Initialize and validate Terraform
+  - Plan and apply infrastructure changes
+  - Capture outputs (IPs, ECR URL)
+```
+
+**What it provisions:**
+- **VPC and Networking**: Custom VPC with public subnets and internet gateway
+- **Security Groups**: Comprehensive K3s security group with all required ports
+- **EC2 Instances**: 2 instances (control plane + worker) with Ubuntu 22.04
+- **ECR Repository**: Private container registry for application images
+- **SSH Keys**: Automatically generated key pairs for secure access
+
+### **Stage 2: K3s Cluster Setup** (`ansible`)
+```yaml
+steps:
+  - Generate dynamic inventory from Terraform outputs
+  - Wait for SSH availability on all instances  
+  - Run Ansible playbook to setup K3s cluster
+  - Configure control plane and join worker nodes
+```
+
+**What it configures:**
+- **K3s Control Plane**: Installs K3s server with TLS configuration
+- **K3s Worker**: Joins worker node to the cluster
+- **Docker & AWS CLI**: Installs required tools on all nodes
+- **ECR Authentication**: Configures Docker to pull from ECR
+
+### **Stage 3: Application Deployment** (`kubectl`)
+```yaml
+steps:
+  - Copy kubeconfig from control plane
+  - Deploy Flask app using Kustomize overlays
+  - Wait for deployments to be ready
+  - Run health checks and display access URLs
+```
+
+**What it deploys:**
+- **Nginx Ingress Controller**: Installs and configures ingress controller with NodePort access
+- **Flask Application**: Multi-replica Flask app with health probes
+- **MySQL Database**: Persistent MySQL with pre-loaded schema
+- **Services**: ClusterIP services for internal communication
+- **Ingress**: Nginx ingress with dynamic host configuration for external access
+
+### **Security Group Configuration** ✅ **FIXED**
+
+The security group configuration has been **consolidated and optimized**:
+
+**Before (Problem):**
+- ❌ Duplicate security groups in network and compute modules
+- ❌ Inconsistent port configurations
+- ❌ Resource conflicts and management issues
+
+**After (Solution):**
+- ✅ **Single K3s Security Group** in network module
+- ✅ **Comprehensive port configuration**:
+  ```hcl
+  # SSH Access
+  port 22: SSH access from anywhere
+  
+  # Web Traffic  
+  port 80/443: HTTP/HTTPS traffic
+  
+  # Kubernetes
+  port 6443: Kubernetes API server
+  port 5002: Flask application direct access
+  port 30000-32767: NodePort service range
+  
+  # Internal Cluster Communication
+  port 0-65535: Self-referencing for cluster traffic
+  ```
+- ✅ **Proper module dependencies**: Compute module uses security group from network module
+
+### **Application Access Points** ✅ **UPDATED**
+
+After successful deployment, the application is accessible via **Nginx Ingress**:
+
+1. **Primary Access (Ingress)**: `http://<control-plane-ip>.nip.io/flask/`
+2. **Direct Ingress Controller**: `http://<control-plane-ip>:30080/flask/`
+3. **Health Endpoints via Ingress**: 
+   - Liveness: `http://<control-plane-ip>.nip.io/flask/healthz`
+   - Readiness: `http://<control-plane-ip>.nip.io/flask/readiness`
+
+**Benefits of Ingress Setup:**
+- ✅ **Production-ready routing** with path-based and host-based rules
+- ✅ **SSL termination** capability (can be enabled for HTTPS)
+- ✅ **Load balancing** across multiple Flask replicas
+- ✅ **Path rewriting** for clean URLs
+- ✅ **Centralized ingress management** for multiple services
+
+### **Flask Application Pipeline** (`.github/workflows/flake8.yml`)
 
 ### **Stage 1: Test and Coverage** (`test_and_coverage`)
 ```yaml

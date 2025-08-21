@@ -26,6 +26,7 @@ module "compute" {
   instance_count = 2
   vpc_id        = module.network.vpc_id
   subnet_ids    = module.network.subnet_ids
+  k3s_security_group_id = module.network.k3s_security_group_id
 }
 
 module "ecr" {
