@@ -1,7 +1,12 @@
 ---
 - name: Install K3s server (control plane)
   shell: |
-    curl -sfL https://get.k3s.io | sh -s - server --tls-san {{ ansible_host }}
+    curl -sfL https://get.k3s.io | sh -s - server \
+      --tls-san {{ ansible_host }} \
+      --tls-san {{ private_ip }} \
+      --bind-address {{ private_ip }} \
+      --advertise-address {{ private_ip }} \
+      --node-external-ip {{ ansible_host }}
   args:
     creates: /usr/local/bin/k3s
 

@@ -24,6 +24,17 @@
     - /var/lib/rancher/k3s/agent
   ignore_errors: yes
 
+- name: Reload systemd daemon
+  systemd:
+    daemon_reload: yes
+
+- name: Test connectivity to control plane
+  wait_for:
+    host: "{{ hostvars['cp1']['private_ip'] }}"
+    port: 6443
+    timeout: 60
+  register: connectivity_test
+
 - name: Read fresh node-token from control plane
   slurp:
     src: /var/lib/rancher/k3s/server/node-token
@@ -39,6 +50,11 @@
     curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="agent --server https://{{ hostvars['cp1']['private_ip'] }}:6443 --token {{ k3s_node_token }}" sh -
   args:
     creates: /usr/local/bin/k3s-agent
+  register: k3s_install_result
+
+- name: Debug K3s installation result
+  debug:
+    var: k3s_install_result
 
 - name: Wait for K3s agent to be ready
   systemd:
@@ -47,7 +63,7 @@
   register: k3s_agent_status
   retries: 30
   delay: 10
-  until: k3s_agent_status is succeeded 
+  until: k3s_agent_status is succeeded
 
 - name: Install AWS CLI
   apt:
