@@ -6,3 +6,11 @@ resources:
   - pvc.yaml
   - ingress.yaml
   - mysql-deployment.yaml
+
+generatorOptions:
+  disableNameSuffixHash: true
+
+secretGenerator:
+  - name: db-secret
+    envs:
+      - secrets/db.env
