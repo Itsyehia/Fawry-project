@@ -111,9 +111,8 @@ jobs:
           echo "ECR_REPOSITORY_URL=$ECR_REPOSITORY_URL" >> $GITHUB_ENV
 
           echo "control_plane_ip=$CONTROL_PLANE_IP" >> $GITHUB_OUTPUT
-          echo "worker_ip=$WORKER_IP" >> $GITHUB_OUTPUT
-          echo "ecr_repository_url=$ECR_REPOSITORY_URL" >> $GITHUB_OUTPUT
-          echo "ssh_private_key=$(cat terraform/modules/compute/poc-pre-prod-key.pem)" >> $GITHUB_OUTPUT
+          echo "worker_ip=$WORKER_IP" >> $GITHUB
+
 
 
 
