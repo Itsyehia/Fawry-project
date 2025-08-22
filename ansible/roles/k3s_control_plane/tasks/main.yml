@@ -41,7 +41,7 @@
     chmod 600 ~/.kube/config
     sudo sed -i "s#127.0.0.1#{{ ansible_host }}#g" ~/.kube/config
     sudo sed -i "s#localhost#{{ ansible_host }}#g" ~/.kube/config
-    sudo sed -i "s#server: https://.*:6443#server: https://{{ ansible_host }}:6443#g" ~/.kube/config
+    sudo sed -i "s#{{ private_ip }}#{{ ansible_host }}#g" ~/.kube/config
   args:
     creates: ~/.kube/config
 

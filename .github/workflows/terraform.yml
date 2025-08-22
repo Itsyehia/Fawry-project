@@ -301,6 +301,7 @@ jobs:
           cat ~/.kube/config
           sed -i "s/127.0.0.1/${{ needs.terraform.outputs.control_plane_ip }}/g" ~/.kube/config
           sed -i "s/localhost/${{ needs.terraform.outputs.control_plane_ip }}/g" ~/.kube/config
+          sed -i "s/${{ needs.terraform.outputs.control_plane_private_ip }}/${{ needs.terraform.outputs.control_plane_ip }}/g" ~/.kube/config
           echo "Updated kubeconfig:"
           cat ~/.kube/config
 
