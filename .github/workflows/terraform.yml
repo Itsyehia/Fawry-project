@@ -93,7 +93,7 @@ jobs:
           echo "Terraform apply failed. Attempting rollback..."
           terraform -chdir=$TF_DIR destroy -auto-approve
           exit 1
-
+          
       - name: Capture Terraform Outputs
         id: tf_outputs
         run: |
@@ -111,7 +111,10 @@ jobs:
           echo "ECR_REPOSITORY_URL=$ECR_REPOSITORY_URL" >> $GITHUB_ENV
 
           echo "control_plane_ip=$CONTROL_PLANE_IP" >> $GITHUB_OUTPUT
-          echo "worker_ip=$WORKER_IP" >> $GITHUB
+          echo "worker_ip=$WORKER_IP" >> $GITHUB_OUTPUT
+          echo "control_plane_private_ip=$CONTROL_PLANE_PRIVATE_IP" >> $GITHUB_OUTPUT
+          echo "worker_private_ip=$WORKER_PRIVATE_IP" >> $GITHUB_OUTPUT
+          echo "ecr_repository_url=$ECR_REPOSITORY_URL" >> $GITHUB_OUTPUT
 
 
 
