@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 from app import app
 
+
 # Fixture to create a test client
 @pytest.fixture
 def client():
@@ -235,6 +236,7 @@ def test_validate_login_wrong_password(mock_mysql, client):
         "inputPassword": "pass123"
     })
     assert b"Wrong Email address" in response.data
+
 
 # Test the validate login page with DB error
 @patch('app.mysql')
