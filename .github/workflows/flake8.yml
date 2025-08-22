@@ -165,3 +165,130 @@ jobs:
           path: |
             trivy-flaskapp-report.json
             trivy-mysql-report.json
+
+    # 7) Deploy to K3s cluster
+  deploy_to_k8s:
+    runs-on: ubuntu-latest
+    needs: trivy_scan
+    # Only deploy on push to main branch (not on PRs)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    env:
+      IMAGE_TAG: ${{ github.sha }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Setup Python for AWS CLI
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install AWS CLI
+        run: |
+          python -m pip install --upgrade pip
+          pip install awscli
+
+      - name: Get K3s cluster info from Terraform state
+        run: |
+          # Get the latest Terraform state to find cluster IPs
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          BUCKET_NAME="poc-prod-vpc-logs-${ACCOUNT_ID}-preprod"
+          
+          # Download terraform state
+          aws s3 cp s3://$BUCKET_NAME/pre-prod/terraform.tfstate terraform.tfstate
+          
+          # Extract IPs from state (requires jq)
+          sudo apt-get update && sudo apt-get install -y jq
+          
+          CONTROL_PLANE_IP=$(jq -r '.outputs.ec2_public_ips.value[0]' terraform.tfstate)
+          echo "CONTROL_PLANE_IP=$CONTROL_PLANE_IP" >> $GITHUB_ENV
+          
+          echo "Control Plane IP: $CONTROL_PLANE_IP"
+
+      - name: Setup SSH and get kubeconfig
+        run: |
+          mkdir -p ~/.ssh
+          
+          # Get SSH private key from Terraform state
+          SSH_PRIVATE_KEY=$(jq -r '.outputs.ssh_private_key.value' terraform.tfstate)
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/k3s-key
+          chmod 600 ~/.ssh/k3s-key
+          
+          # Setup SSH config
+          cat > ~/.ssh/config <<EOF
+          Host k3s-control
+            HostName ${{ env.CONTROL_PLANE_IP }}
+            User ubuntu
+            IdentityFile ~/.ssh/k3s-key
+            StrictHostKeyChecking no
+          EOF
+          
+          # Get kubeconfig from K3s cluster
+          mkdir -p ~/.kube
+          ssh k3s-control "sudo cat /etc/rancher/k3s/k3s.yaml" > ~/.kube/config
+          
+          # Update kubeconfig server IP
+          sed -i "s/127.0.0.1/${{ env.CONTROL_PLANE_IP }}/g" ~/.kube/config
+          sed -i "s/localhost/${{ env.CONTROL_PLANE_IP }}/g" ~/.kube/config
+
+      - name: Wait for kubectl connectivity
+        run: |
+          for i in {1..15}; do
+            if kubectl get nodes --request-timeout=10s >/dev/null 2>&1; then
+              echo "K3s cluster is ready!"
+              kubectl get nodes
+              break
+            fi
+            echo "Attempt $i: waiting for cluster..."
+            sleep 20
+          done
+
+      - name: Create secrets directory and files
+        run: |
+          mkdir -p k8s/base/secrets
+          cat > k8s/base/secrets/db.env << EOF
+          MYSQL_ROOT_PASSWORD=root
+          MYSQL_DATABASE=BucketList
+          MYSQL_DATABASE_PASSWORD=root
+          EOF
+
+      - name: Deploy to K3s cluster
+        run: |
+          # Update image tags to use commit SHA instead of latest
+          sed -i "s|newTag: latest|newTag: ${{ env.IMAGE_TAG }}|g" k8s/overlays/testing/kustomization.yaml
+          
+          # Update ingress with actual control plane IP
+          sed -i "s|CONTROL_PLANE_IP|${{ env.CONTROL_PLANE_IP }}|g" k8s/overlays/testing/ingress-patch.yaml
+
+          echo "=== Deployment Configuration ==="
+          ls -R k8s/overlays/testing/
+          cat k8s/overlays/testing/kustomization.yaml
+
+          echo "=== Applying Kubernetes manifests ==="
+          kubectl apply -k k8s/overlays/testing/
+
+          echo "=== Waiting for deployment ==="
+          kubectl wait --for=condition=available --timeout=600s deployment/flaskapp
+
+          echo "=== Deployment Status ==="
+          kubectl get pods
+          kubectl get services  
+          kubectl get ingress
+          
+          echo "=== Application URL ==="
+          echo "Application should be available at: http://${{ env.CONTROL_PLANE_IP }}/flask/"
+
+      - name: Cleanup sensitive files
+        if: always()
+        run: |
+          rm -f ~/.ssh/k3s-key
+          rm -f terraform.tfstate
