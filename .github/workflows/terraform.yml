@@ -342,6 +342,6 @@ jobs:
 
           kubectl wait --for=condition=available --timeout=600s deployment/flaskapp
 
-          kubectl get pods -n flaskapp
-          kubectl get services -n flaskapp
-          kubectl get ingress -n flaskapp
+          kubectl get pods
+          kubectl get services  
+          kubectl get ingress
