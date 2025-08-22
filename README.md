@@ -1,50 +1,5 @@
 # Fawry-project
 
-## 🚀 Quick Start
-
-### Prerequisites
-- Docker and Docker Compose
-- Kubernetes cluster (local or cloud)
-- kubectl configured
-- Python 3.9+ (for local development)
-
-### Local Development
-
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd Fawry-project
-   ```
-
-2. **Set up Python environment**
-   ```bash
-   cd flaskapp-database/flaskapp
-   pip install -r requirements.txt
-   ```
-
-### Kubernetes Deployment
-
-#### Testing Environment
-```bash
-# Apply base configuration
-kubectl apply -k k8s/overlays/testing
-
-# Check deployment status
-kubectl get pods,services,ingress
-
-# Access application
-curl http://192.168.49.2.nip.io/flask/
-```
-
-#### Production Environment
-```bash
-# Apply production configuration
-kubectl apply -k k8s/overlays/production
-
-# Verify deployment
-kubectl get pods -l app=flaskapp
-kubectl get pods -l app=mysql
-```
 
 ## 🏛️ Kubernetes Architecture
 
@@ -118,7 +73,7 @@ Manages sensitive data like database passwords:
 The project includes **two comprehensive CI/CD pipelines**:
 
 ### **Flask Application Pipeline** (`.github/workflows/flake8.yml`)
-A **three-stage pipeline** for the Flask application:
+A **six-stage pipeline** for the Flask application:
 
 ### **Infrastructure Pipeline** (`.github/workflows/terraform.yml`)
 A **complete infrastructure-as-code pipeline** that provisions AWS resources and deploys the application:
@@ -251,21 +206,37 @@ steps:
 - Identifies potential issues like unused imports, trailing whitespace
 - Maintains consistent code quality across the project
 
-### **Stage 3: CodeQL Security Analysis (codeql)**
+### **Stage 3: Secret Detection** (`gitleaks`)
 ```yaml
 needs: flake8
+steps:
+  - Checkout code
+  - Run Gitleaks Secret Scan
+  - Detect secrets in repository
+  - Continue on error for non-blocking scan
+```
+
+**What it does:**
+- Scans the entire repository for exposed secrets and sensitive information
+- Detects API keys, passwords, tokens, and other credentials
+- Uses redaction to safely report findings without exposing actual secrets
+- Continues pipeline execution even if secrets are found (for visibility)
+
+### **Stage 4: CodeQL Security Analysis** (`codeql`)
+```yaml
+needs: gitleaks
 steps:
   - Initialize CodeQL for Python
   - Run CodeQL static analysis
   - Upload results to GitHub Security tab
 ```
+
 **What it does:**
 - Performs static code analysis using GitHub CodeQL
 - Detects vulnerabilities such as SQL injection, unsafe deserialization, and XSS
-- Uploads detailed findings to GitHub’s Security tab for visibility
+- Uploads detailed findings to GitHub's Security tab for visibility
 
-
-### **Stage 4: Build and Deploy** (`build_and_push`)
+### **Stage 5: Build and Deploy** (`build_and_push`)
 ```yaml
 needs: CodeQL
 steps:
@@ -281,7 +252,7 @@ steps:
 - Pushes to Docker Hub registry
 - Enables automated deployments to Kubernetes
 
-### **Stage 5: Trivy Vulnerability Scan (`trivy_scan`)
+### **Stage 6: Trivy Vulnerability Scan (`trivy_scan`)
 ```yaml
 needs: build_and_push
 steps:
@@ -299,7 +270,7 @@ steps:
 
 ### **Pipeline Benefits:**
 - **Quality Gates**: Each stage must pass before proceeding
-- **Security by Design**: Integrated CodeQL and Trivy ensure vulnerabilities are caught early
+- **Security by Design**: Integrated Gitleaks, CodeQL and Trivy ensure vulnerabilities and secrets are caught early
 - **Fast Feedback**: Developers get immediate feedback on issues
 - **Automated Deployment**: Successful builds trigger image updates
 - **Rollback Capability**: Tagged images enable easy rollbacks

@@ -2,14 +2,14 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: flaskapp-ingress
+  name: flaskapp-ingress # Ingress name
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /$2
-    nginx.ingress.kubernetes.io/use-regex: "true"
-    nginx.ingress.kubernetes.io/ssl-redirect: "false"
-    nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2 # Rewrite target
+    nginx.ingress.kubernetes.io/use-regex: "true" # Use regex
+    nginx.ingress.kubernetes.io/ssl-redirect: "false" # SSL redirect
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "false" # Force SSL redirect
 spec:
-  ingressClassName: nginx
+  ingressClassName: nginx # Ingress class name
   rules:
     - host: CONTROL_PLANE_IP.nip.io  # Will be replaced by Terraform workflow
       http:

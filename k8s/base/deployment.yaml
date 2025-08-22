@@ -2,47 +2,51 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: flaskapp
+  name: flaskapp # Deployment name
 spec:
-  replicas: 1
+  replicas: 1  # Number of Flask app replicas (1 pod)
   selector:
     matchLabels:
-      app: flaskapp
+      app: flaskapp # Match pods with this label
   template:
     metadata:
       labels:
-        app: flaskapp
+        app: flaskapp # Label for the Flask app
     spec:
+
+      # Init container to wait until MySQL is ready before starting Flask
       initContainers:
         - name: wait-for-mysql
           image: busybox:1.35
           command: ['sh', '-c', 'until nc -z mysql 3306; do echo waiting for mysql; sleep 2; done;']
       containers:
         - name: flaskapp
-          image: yehiashaikhoun/flaskapp:latest
+          image: yehiashaikhoun/flaskapp:latest # Flask app image
           imagePullPolicy: Always
           envFrom:
             - configMapRef:
                 name: flaskapp-config
+
+          # Environment variables for the Flask app
           env:
             - name: FLASK_APP
-              value: app.py
-            - name: MYSQL_DATABASE_PASSWORD
+              value: app.py # Flask entrypoint
+            - name: MYSQL_DATABASE_PASSWORD # MySQL password
               valueFrom:
                 secretKeyRef:
                   name: db-secret
                   key: MYSQL_DATABASE_PASSWORD
           ports:
-            - containerPort: 5002
+            - containerPort: 5002 # Flask app port
           readinessProbe:
             httpGet:
-              path: /readiness
-              port: 5002
+              path: /readiness # Readiness probe path
+              port: 5002 # Flask app port
             initialDelaySeconds: 30
             periodSeconds: 10
           livenessProbe:
             httpGet:
-              path: /healthz
-              port: 5002
+              path: /healthz # Liveness probe path
+              port: 5002 # Flask app port
             initialDelaySeconds: 60
             periodSeconds: 30

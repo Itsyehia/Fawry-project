@@ -2,13 +2,13 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: flaskapp
+  name: flaskapp # Deployment name
 spec:
-  replicas: 1
+  replicas: 1 # Number of replicas
   template:
     spec:
       containers:
-        - name: flaskapp
+        - name: flaskapp # Container name
           resources:
             requests:
               cpu: "100m"
@@ -20,12 +20,12 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: mysql
+  name: mysql # Deployment name
 spec:
   template:
     spec:
       containers:
-        - name: mysql
+        - name: mysql # Container name
           resources:
             requests:
               cpu: "100m"

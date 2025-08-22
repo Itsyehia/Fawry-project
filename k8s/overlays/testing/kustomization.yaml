@@ -3,13 +3,13 @@ resources:
   - ../../base
 
 images:
-  - name: yehiashaikhoun/flaskapp
-    newName: yehiashaikhoun/flaskapp
-    newTag: latest
-  - name: yehiashaikhoun/mysql
-    newName: docker.io/yehiashaikhoun/mysql
-    newTag: latest
+  - name: yehiashaikhoun/flaskapp # Flask app image
+    newName: yehiashaikhoun/flaskapp # New name
+    newTag: latest # New tag
+  - name: yehiashaikhoun/mysql # MySQL image
+    newName: docker.io/yehiashaikhoun/mysql # New name
+    newTag: latest # New tag
 
 patches:
-  - path: flask-deploy-patch.yaml
-  - path: ingress-patch.yaml
+  - path: flask-deploy-patch.yaml # Flask deployment patch
+  - path: ingress-patch.yaml # Ingress patch

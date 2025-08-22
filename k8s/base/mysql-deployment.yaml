@@ -2,56 +2,56 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: mysql
+  name: mysql # Deployment name
 spec:
-  replicas: 1
+  replicas: 1 # Number of MySQL replicas (1 pod)
   selector:
     matchLabels:
-      app: mysql
+      app: mysql # Match pods with this label
   template:
     metadata:
       labels:
-        app: mysql
+        app: mysql # Label for the MySQL
     spec:
       containers:
         - name: mysql
-          image: yehiashaikhoun/mysql:latest
-          imagePullPolicy: Always
+          image: yehiashaikhoun/mysql:latest # MySQL image
+          imagePullPolicy: Always # Image pull policy
           env:
-            - name: MYSQL_ROOT_PASSWORD
+            - name: MYSQL_ROOT_PASSWORD # MySQL root password
               valueFrom:
                 secretKeyRef:
                   name: db-secret
                   key: MYSQL_ROOT_PASSWORD
-            - name: MYSQL_DATABASE
+            - name: MYSQL_DATABASE # MySQL database
               valueFrom:
                 secretKeyRef:
                   name: db-secret
                   key: MYSQL_DATABASE
           ports:
-            - containerPort: 3306
+            - containerPort: 3306 # MySQL port
           volumeMounts:
-            - name: mysql-storage
-              mountPath: /var/lib/mysql
+            - name: mysql-storage # Volume mount for MySQL data
+              mountPath: /var/lib/mysql # Path to mount the volume
           readinessProbe:
             exec:
               command:
-                - mysqladmin
-                - ping
-                - -h
-                - localhost
+                - mysqladmin # MySQL admin command
+                - ping # Ping command
+                - -h # Host
+                - localhost # Localhost
             initialDelaySeconds: 30
             periodSeconds: 10
           livenessProbe:
             exec:
               command:
-                - mysqladmin
-                - ping
-                - -h
-                - localhost
+                - mysqladmin # MySQL admin command
+                - ping # Ping command
+                - -h # Host
+                - localhost # Localhost
             initialDelaySeconds: 60
             periodSeconds: 30
       volumes:
-        - name: mysql-storage
+        - name: mysql-storage # Volume name
           persistentVolumeClaim:
-            claimName: mysql-pvc
+            claimName: mysql-pvc # Persistent volume claim name
