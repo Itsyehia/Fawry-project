@@ -113,6 +113,9 @@ jobs:
           echo "control_plane_ip=$CONTROL_PLANE_IP" >> $GITHUB_OUTPUT
           echo "worker_ip=$WORKER_IP" >> $GITHUB_OUTPUT
           echo "ecr_repository_url=$ECR_REPOSITORY_URL" >> $GITHUB_OUTPUT
+          echo "ssh_private_key=$(cat terraform/modules/compute/poc-pre-prod-key.pem)" >> $GITHUB_OUTPUT
+
+
 
       - name: Copy Terraform SSH Private Key
         run: |
@@ -229,31 +232,22 @@ jobs:
           echo ""
           echo "=== NEXT STEPS ==="
           echo "Images are now available in ECR and ready for Kubernetes deployment"
+
       - name: Setup kubectl
         uses: azure/setup-kubectl@v3
         with:
           version: 'latest'
 
-      - name: Upload SSH Key as Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ssh-key
-          path: private-key.pem
-
-
-      - name: Download SSH Key Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: ssh-key
-          path: ~/.ssh
-
-
       - name: Setup SSH access to K3s
         run: |
-          mv ~/.ssh/poc-*-key.pem ~/.ssh/k3s-key
+          mkdir -p ~/.ssh
+          echo "${{ needs.terraform.outputs.ssh_private_key }}" > ~/.ssh/k3s-key
           chmod 600 ~/.ssh/k3s-key
+
           CONTROL_PLANE_IP="${{ needs.terraform.outputs.control_plane_ip }}"
-          cat > ~/.ssh/config << EOF
+
+          # Write SSH config
+          cat > ~/.ssh/config <<EOF
           Host k3s-control
             HostName $CONTROL_PLANE_IP
             User ubuntu
@@ -261,6 +255,8 @@ jobs:
             StrictHostKeyChecking no
           EOF
 
+              echo "✅ SSH config written:"
+              cat ~/.ssh/config
 
       - name: Debug SSH Info
         run: |
