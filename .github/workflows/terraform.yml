@@ -82,10 +82,27 @@ jobs:
       - name: Terraform Plan
         run: terraform -chdir=$TF_DIR plan -out=tfplan
 
-      - name: Terraform Apply
-        id: apply
-        run: terraform -chdir=$TF_DIR apply -auto-approve tfplan
-        continue-on-error: true
+      - name: Terraform Apply with Debug
+        id: terraform_apply
+        run: |
+          echo "Running Terraform apply..."
+          export TF_LOG=DEBUG
+          export TF_LOG_PATH=terraform_debug.log
+
+          # Run Terraform apply and capture exit code
+          terraform -chdir=$TF_DIR apply -auto-approve
+          EXIT_CODE=$?
+
+          # Output debug log location
+          echo "Terraform debug log: terraform_debug.log"
+
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "Terraform apply failed with exit code $EXIT_CODE"
+            # Optionally, print last 50 lines of debug log for quick view
+            tail -n 50 terraform_debug.log
+            exit $EXIT_CODE
+          fi
+
 
       - name: Handle Terraform Failure
         if: steps.apply.outcome == 'failure'
