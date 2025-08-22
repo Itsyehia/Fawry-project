@@ -318,6 +318,19 @@ jobs:
             sleep 10
           done
       
+      - name: Create secrets directory and files
+        run: |
+          mkdir -p k8s/base/secrets
+          
+          cat > k8s/base/secrets/db.env << EOF
+          MYSQL_ROOT_PASSWORD=root
+          MYSQL_DATABASE=BucketList
+          MYSQL_DATABASE_PASSWORD=root
+          EOF
+          
+          echo "Created secrets directory and db.env file"
+          ls -la k8s/base/secrets/
+
       - name: Deploy to K3s cluster
         run: |
           sed -i "s|:latest|:${{ env.IMAGE_TAG }}|g" k8s/overlays/testing/kustomization.yaml
