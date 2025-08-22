@@ -8,7 +8,7 @@
     group: root
     mode: '0755'
 
-- name: Configure K3s server with custom settings
+- name: Configure K3s server with custom skettings
   copy:
     dest: /etc/rancher/k3s/config.yaml
     content: |
@@ -33,12 +33,17 @@
   delay: 10
   until: k3s_server_status.rc == 0
 
-- name: Configure kubectl access
+- name: Configure kubectl access with external IP
   shell: |
     mkdir -p ~/.kube
     sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
     sudo chown ubuntu:ubuntu ~/.kube/config
     chmod 600 ~/.kube/config
+
+    # Automatically replace localhost with the control-plane's public IP
+    sudo sed -i "s#127.0.0.1#{{ ansible_host }}#g" ~/.kube/config
+    sudo sed -i "s#localhost#{{ ansible_host }}#g" ~/.kube/config
+    sudo sed -i "s#server: https://.*:6443#server: https://{{ ansible_host }}:6443#g" ~/.kube/config
   args:
     creates: ~/.kube/config
 
