@@ -206,7 +206,7 @@ jobs:
   deploy:
     name: Build and Deploy Flask App to ECR
     runs-on: ubuntu-latest
-    # needs: terraform
+    needs: terraform
 
     env:
       AWS_REGION: eu-west-1
