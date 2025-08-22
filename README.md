@@ -251,9 +251,23 @@ steps:
 - Identifies potential issues like unused imports, trailing whitespace
 - Maintains consistent code quality across the project
 
-### **Stage 3: Build and Deploy** (`build_and_push`)
+### **Stage 3: CodeQL Security Analysis (codeql)**
 ```yaml
 needs: flake8
+steps:
+  - Initialize CodeQL for Python
+  - Run CodeQL static analysis
+  - Upload results to GitHub Security tab
+```
+**What it does:**
+- Performs static code analysis using GitHub CodeQL
+- Detects vulnerabilities such as SQL injection, unsafe deserialization, and XSS
+- Uploads detailed findings to GitHub’s Security tab for visibility
+
+
+### **Stage 4: Build and Deploy** (`build_and_push`)
+```yaml
+needs: CodeQL
 steps:
   - Setup Docker Buildx
   - Login to Docker Hub
@@ -267,8 +281,25 @@ steps:
 - Pushes to Docker Hub registry
 - Enables automated deployments to Kubernetes
 
+### **Stage 5: Trivy Vulnerability Scan (`trivy_scan`)
+```yaml
+needs: build_and_push
+steps:
+  - Install Trivy security scanner
+  - Scan Flask application Docker image
+  - Scan MySQL Docker image
+  - Upload vulnerability reports as artifacts
+```
+
+**What it does:**
+- Scans container images for known CVEs (Critical/High/Medium vulnerabilities)
+- Produces JSON reports for both Flask and MySQL images
+- Uploads reports as artifacts for auditing
+- Provides an additional security gate before deployment
+
 ### **Pipeline Benefits:**
 - **Quality Gates**: Each stage must pass before proceeding
+- **Security by Design**: Integrated CodeQL and Trivy ensure vulnerabilities are caught early
 - **Fast Feedback**: Developers get immediate feedback on issues
 - **Automated Deployment**: Successful builds trigger image updates
 - **Rollback Capability**: Tagged images enable easy rollbacks
@@ -413,11 +444,9 @@ kubectl exec -it <flask-pod> -- curl localhost:5002/readiness
 ## 🔄 Future Enhancements
 
 ### **Technical Improvements**
-- [ ] Implement Redis for session storage
 - [ ] Add Prometheus metrics collection
 - [ ] Implement Grafana dashboards
 - [ ] Add automated backup for MySQL
-- [ ] Implement blue-green deployment strategy
 
 ---
 
