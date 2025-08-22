@@ -1,0 +1,8 @@
+# ansible/roles/k3s_control_plane/handlers/main.yml
+---
+- name: Restart k3s
+  systemd:
+    name: k3s
+    state: restarted
+    enabled: yes
+    daemon_reload: yes
