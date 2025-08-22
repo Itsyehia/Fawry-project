@@ -206,7 +206,7 @@ jobs:
   deploy:
     name: Build and Deploy Flask App to ECR
     runs-on: ubuntu-latest
-    needs: terraform
+    # needs: terraform
 
     env:
       AWS_REGION: eu-west-1
@@ -342,6 +342,6 @@ jobs:
 
           kubectl wait --for=condition=available --timeout=600s deployment/flaskapp
 
-          kubectl get pods
-          kubectl get services  
+          kubectl get pods 
+          kubectl get services
           kubectl get ingress
