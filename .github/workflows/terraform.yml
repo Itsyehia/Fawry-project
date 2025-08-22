@@ -320,16 +320,14 @@ jobs:
       
       - name: Deploy to K3s cluster
         run: |
-          # Update image tag in your kustomization (replace :latest with GitHub SHA tag)
-          sed -i "s|:latest|:${{ env.IMAGE_TAG }}|g" k8s/overlays/production/kustomization.yaml
-          
-          # Apply using Kustomize overlay
-          kubectl apply -k k8s/production/testing/
-          
-          # Wait for the Flask app deployment to be available
+          sed -i "s|:latest|:${{ env.IMAGE_TAG }}|g" k8s/overlays/testing/kustomization.yaml
+
+          ls -R k8s/overlays/testing/
+
+          kubectl apply -k k8s/overlays/testing/
+
           kubectl wait --for=condition=available --timeout=600s deployment/flaskapp -n flaskapp
-          
-          # Show status
+
           kubectl get pods -n flaskapp
           kubectl get services -n flaskapp
           kubectl get ingress -n flaskapp
