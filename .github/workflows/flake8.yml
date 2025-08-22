@@ -287,12 +287,12 @@ jobs:
 
       - name: Deploy to K3s cluster
         run: |
-          sed -i "s|:latest|:${{ env.IMAGE_TAG }}|g" k8s/overlays/testing/kustomization.yaml
-          sed -i "s|CONTROL_PLANE_IP|${{ env.CONTROL_PLANE_IP }}|g" k8s/overlays/testing/ingress-patch.yaml
+          sed -i "s|:latest|:${{ env.IMAGE_TAG }}|g" k8s/overlays/production/kustomization.yaml
+          sed -i "s|CONTROL_PLANE_IP|${{ env.CONTROL_PLANE_IP }}|g" k8s/overlays/production/ingress-patch.yaml
 
-          ls -R k8s/overlays/testing/
+          ls -R k8s/overlays/production/
 
-          kubectl apply -k k8s/overlays/testing/
+          kubectl apply -k k8s/overlays/production/
 
           kubectl get pods
           kubectl get services  
