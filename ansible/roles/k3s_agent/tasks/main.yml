@@ -47,7 +47,11 @@
 
 - name: Install K3s agent (worker)
   shell: |
-    curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="agent --server https://{{ hostvars['cp1']['private_ip'] }}:6443 --token {{ k3s_node_token }}" sh -
+    curl -sfL https://get.k3s.io | \
+    INSTALL_K3S_EXEC="agent \
+      --server https://{{ hostvars['cp1']['private_ip'] }}:6443 \
+      --token {{ k3s_node_token }} \
+      --node-external-ip {{ ansible_host }}" sh -
   args:
     creates: /usr/local/bin/k3s-agent
   register: k3s_install_result
@@ -85,9 +89,11 @@
 
 - name: Authenticate Docker to ECR
   shell: |
-    aws ecr get-login-password --region eu-west-1 | sudo docker login --username AWS --password-stdin 600865703207.dkr.ecr.eu-west-1.amazonaws.com
+    aws ecr get-login-password --region eu-west-1 | \
+    sudo docker login --username AWS --password-stdin \
+    600865703207.dkr.ecr.eu-west-1.amazonaws.com
   environment:
     AWS_ACCESS_KEY_ID: "{{ lookup('env', 'AWS_ACCESS_KEY_ID') }}"
     AWS_SECRET_ACCESS_KEY: "{{ lookup('env', 'AWS_SECRET_ACCESS_KEY') }}"
   register: ecr_login
-  changed_when: "'Login Succeeded' in ecr_login.stdout" 
+  changed_when: "'Login Succeeded' in ecr_login.stdout"
