@@ -97,24 +97,36 @@ jobs:
       - name: Capture Terraform Outputs
         id: tf_outputs
         run: |
+          # Get Terraform outputs as JSON
           terraform -chdir=$TF_DIR output -json > terraform_outputs.json
+          
+          # Extract IP addresses from JSON
           CONTROL_PLANE_IP=$(jq -r '.ec2_public_ips.value[0]' terraform_outputs.json)
           WORKER_IP=$(jq -r '.ec2_public_ips.value[1]' terraform_outputs.json)
           CONTROL_PLANE_PRIVATE_IP=$(jq -r '.ec2_private_ips.value[0]' terraform_outputs.json)
           WORKER_PRIVATE_IP=$(jq -r '.ec2_private_ips.value[1]' terraform_outputs.json)
-          ECR_REPOSITORY_URL=$(jq -r '.ecr_repository_url.value' terraform_outputs.json)
-
+          
+          # Read SSH private key safely
+          SSH_PRIVATE_KEY=$(cat terraform/modules/compute/poc-pre-prod-key.pem)
+          
+          # Set environment variables
           echo "CONTROL_PLANE_IP=$CONTROL_PLANE_IP" >> $GITHUB_ENV
           echo "WORKER_IP=$WORKER_IP" >> $GITHUB_ENV
           echo "CONTROL_PLANE_PRIVATE_IP=$CONTROL_PLANE_PRIVATE_IP" >> $GITHUB_ENV
           echo "WORKER_PRIVATE_IP=$WORKER_PRIVATE_IP" >> $GITHUB_ENV
-          echo "ECR_REPOSITORY_URL=$ECR_REPOSITORY_URL" >> $GITHUB_ENV
-
+          
+          # Output variables for other jobs (multi-line safe for SSH key)
           echo "control_plane_ip=$CONTROL_PLANE_IP" >> $GITHUB_OUTPUT
           echo "worker_ip=$WORKER_IP" >> $GITHUB_OUTPUT
           echo "control_plane_private_ip=$CONTROL_PLANE_PRIVATE_IP" >> $GITHUB_OUTPUT
           echo "worker_private_ip=$WORKER_PRIVATE_IP" >> $GITHUB_OUTPUT
-          echo "ecr_repository_url=$ECR_REPOSITORY_URL" >> $GITHUB_OUTPUT
+          echo "ssh_private_key<<EOF" >> $GITHUB_OUTPUT
+          echo "$SSH_PRIVATE_KEY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          echo "Control Plane IP: $CONTROL_PLANE_IP"
+          echo "Worker IP: $WORKER_IP"
+
 
 
 
@@ -243,7 +255,8 @@ jobs:
       - name: Setup SSH access to K3s
         run: |
           mkdir -p ~/.ssh
-          echo "${{ needs.terraform.outputs.ssh_private_key }}" > ~/.ssh/k3s-key
+          # Use printf to preserve multi-line PEM key
+          printf "%s" "${{ needs.terraform.outputs.ssh_private_key }}" > ~/.ssh/k3s-key
           chmod 600 ~/.ssh/k3s-key
 
           CONTROL_PLANE_IP="${{ needs.terraform.outputs.control_plane_ip }}"
@@ -259,6 +272,7 @@ jobs:
 
               echo "✅ SSH config written:"
               cat ~/.ssh/config
+
 
       - name: Debug SSH Info
         run: |
