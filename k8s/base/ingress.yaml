@@ -1,21 +1,25 @@
-# k8s/base/ingress.yaml
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: flaskapp-ingress # Ingress name
+  name: flaskapp-ingress
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /$2 # Rewrite target
-    nginx.ingress.kubernetes.io/use-regex: "true" # Use regex
-    nginx.ingress.kubernetes.io/ssl-redirect: "false" # SSL redirect
-    nginx.ingress.kubernetes.io/force-ssl-redirect: "false" # Force SSL redirect
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
 spec:
-  ingressClassName: nginx # Ingress class name
+  ingressClassName: nginx
   rules:
-    - host: 192.168.49.2.nip.io # or testing.local (mapped in /etc/hosts if needed)
+    - host: CONTROL_PLANE_IP.nip.io
       http:
         paths:
-          - path: /flask(/|$)(.*)
-            pathType: ImplementationSpecific
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: flaskapp-service
+                port:
+                  number: 80
+          - path: /flask
+            pathType: Prefix
             backend:
               service:
                 name: flaskapp-service
