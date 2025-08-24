@@ -322,6 +322,20 @@ jobs:
           echo "Updated kubeconfig:"
           cat ~/.kube/config
 
+      - name: Configure ECR Authentication for K3s
+        run: |
+          # Get ECR login token
+          aws ecr get-login-password --region eu-west-1 | ssh k3s-control "sudo docker login --username AWS --password-stdin ${{ needs.terraform.outputs.ecr_repository_url }}"
+          
+          # Create image pull secret
+          kubectl create secret docker-registry ecr-secret \
+            --docker-server=${{ needs.terraform.outputs.ecr_repository_url }} \
+            --docker-username=AWS \
+            --docker-password=$(aws ecr get-login-password --region eu-west-1) \
+            --dry-run=client -o yaml | kubectl apply -f -
+          
+          echo "ECR authentication configured for K3s cluster"
+
       - name: Wait for kubectl to connect to K3s
         run: |
           for i in {1..30}; do
@@ -380,6 +394,11 @@ jobs:
           cat k8s/overlays/testing/kustomization.yaml
 
           ls -R k8s/overlays/testing/
+
+          # Clean up old pods to avoid conflicts
+          echo "Cleaning up old pods..."
+          kubectl delete pods -l app=mysql --force --grace-period=0 || true
+          kubectl delete pods -l app=flaskapp --force --grace-period=0 || true
 
           echo "=== Kustomization Preview ==="
           kubectl kustomize k8s/overlays/testing/ | head -50

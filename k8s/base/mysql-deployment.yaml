@@ -13,6 +13,8 @@ spec:
       labels:
         app: mysql # Label for the MySQL
     spec:
+      imagePullSecrets:
+      - name: ecr-secret
       containers:
         - name: mysql
           image: yehiashaikhoun/mysql:latest # MySQL image
