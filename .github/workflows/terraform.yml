@@ -265,8 +265,17 @@ jobs:
       - name: Verify ECR Images Exist
         run: |
           echo "Verifying ECR images exist..."
-          aws ecr describe-images --repository-name $(echo ${{ needs.terraform.outputs.ecr_repository_url }} | cut -d'/' -f2) --image-ids imageTag=${{ env.IMAGE_TAG }} || echo "Flask image not found"
-          aws ecr describe-images --repository-name $(echo ${{ needs.terraform.outputs.ecr_repository_url }} | cut -d'/' -f2) --image-ids imageTag=mysql-${{ env.IMAGE_TAG }} || echo "MySQL image not found"
+          REPO_NAME=$(echo ${{ needs.terraform.outputs.ecr_repository_url }} | cut -d'/' -f2)
+          echo "Repository: $REPO_NAME"
+          
+          echo "Checking Flask image..."
+          aws ecr describe-images --repository-name $REPO_NAME --image-ids imageTag=${{ env.IMAGE_TAG }} || echo "Flask image not found"
+          
+          echo "Checking MySQL image..."
+          aws ecr describe-images --repository-name $REPO_NAME --image-ids imageTag=mysql-${{ env.IMAGE_TAG }} || echo "MySQL image not found"
+          
+          echo "Listing all available images in repository..."
+          aws ecr describe-images --repository-name $REPO_NAME --query 'imageDetails[*].imageTags' --output table
 
       - name: Setup kubectl
         uses: azure/setup-kubectl@v3
@@ -345,10 +354,28 @@ jobs:
 
           ls -R k8s/overlays/testing/
 
+          echo "=== Kustomization Preview ==="
+          kubectl kustomize k8s/overlays/testing/ | head -50
+
           kubectl apply -k k8s/overlays/testing/
 
           echo "Waiting for MySQL deployment to be ready..."
-          kubectl wait --for=condition=available --timeout=300s deployment/mysql
+          
+          # Debug: Check pod status and events
+          echo "=== MySQL Pod Status ==="
+          kubectl get pods -l app=mysql
+          kubectl describe pods -l app=mysql
+          
+          # Debug: Check pod logs
+          echo "=== MySQL Pod Logs ==="
+          kubectl logs -l app=mysql --tail=50 || echo "No MySQL logs available yet"
+          
+          # Debug: Check events
+          echo "=== Recent Events ==="
+          kubectl get events --sort-by='.lastTimestamp' | tail -20
+          
+          # Wait for MySQL with more detailed output
+          kubectl wait --for=condition=available --timeout=300s deployment/mysql --verbose
           
           echo "Waiting for Flask deployment to be ready..."
           kubectl wait --for=condition=available --timeout=600s deployment/flaskapp
