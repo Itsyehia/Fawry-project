@@ -11,7 +11,7 @@ metadata:
 spec:
   ingressClassName: nginx # Ingress class name
   rules:
-    - host: CONTROL_PLANE_IP.nip.io  # Will be replaced by Terraform workflow
+    - host: 54.154.109.118.nip.io # Will be replaced by Terraform workflow
       http:
         paths:
           - path: /flask(/|$)(.*)
