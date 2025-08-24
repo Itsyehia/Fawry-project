@@ -34,23 +34,19 @@ spec:
             - name: mysql-storage # Volume mount for MySQL data
               mountPath: /var/lib/mysql # Path to mount the volume
           readinessProbe:
-            exec:
-              command:
-                - mysqladmin # MySQL admin command
-                - ping # Ping command
-                - -h # Host
-                - localhost # Localhost
+            tcpSocket:
+              port: 3306
             initialDelaySeconds: 30
             periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
           livenessProbe:
-            exec:
-              command:
-                - mysqladmin # MySQL admin command
-                - ping # Ping command
-                - -h # Host
-                - localhost # Localhost
+            tcpSocket:
+              port: 3306
             initialDelaySeconds: 60
             periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
       volumes:
         - name: mysql-storage # Volume name
           persistentVolumeClaim:

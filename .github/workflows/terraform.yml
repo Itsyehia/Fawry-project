@@ -348,8 +348,16 @@ jobs:
 
       - name: Deploy to K3s cluster
         run: |
-          sed -i "s|:latest|:${{ env.IMAGE_TAG }}|g" k8s/overlays/testing/kustomization.yaml
-          sed -i "s|mysql-latest|mysql-${{ env.IMAGE_TAG }}|g" k8s/overlays/testing/kustomization.yaml
+          # Update image references to use ECR
+          ECR_REPO="${{ needs.terraform.outputs.ecr_repository_url }}"
+          
+          # Update Flask image
+          sed -i "s|yehiashaikhoun/flaskapp:latest|$ECR_REPO:${{ env.IMAGE_TAG }}|g" k8s/overlays/testing/kustomization.yaml
+          
+          # Update MySQL image
+          sed -i "s|yehiashaikhoun/mysql:latest|$ECR_REPO:mysql-${{ env.IMAGE_TAG }}|g" k8s/overlays/testing/kustomization.yaml
+          
+          # Update ingress IP
           sed -i "s|CONTROL_PLANE_IP|${{ needs.terraform.outputs.control_plane_ip }}|g" k8s/overlays/testing/ingress-patch.yaml
 
           ls -R k8s/overlays/testing/
@@ -375,7 +383,7 @@ jobs:
           kubectl get events --sort-by='.lastTimestamp' | tail -20
           
           # Wait for MySQL with more detailed output
-          kubectl wait --for=condition=available --timeout=300s deployment/mysql --verbose
+          kubectl wait --for=condition=available --timeout=300s deployment/mysql
           
           echo "Waiting for Flask deployment to be ready..."
           kubectl wait --for=condition=available --timeout=600s deployment/flaskapp
