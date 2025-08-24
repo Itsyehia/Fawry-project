@@ -61,17 +61,3 @@ spec:
             limits:
               cpu: "500m"
               memory: "1Gi"
-          readinessProbe:
-            tcpSocket:
-              port: 3306
-            initialDelaySeconds: 30
-            periodSeconds: 10
-            timeoutSeconds: 5
-            failureThreshold: 3
-          livenessProbe:
-            tcpSocket:
-              port: 3306
-            initialDelaySeconds: 60
-            periodSeconds: 15
-            timeoutSeconds: 5
-            failureThreshold: 3
