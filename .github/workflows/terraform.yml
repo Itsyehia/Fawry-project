@@ -256,11 +256,17 @@ jobs:
           echo "=== ECR DEPLOYMENT SUMMARY ==="
           echo "ECR Repository: ${{ needs.terraform.outputs.ecr_repository_url }}"
           echo "Flask Image: ${{ needs.terraform.outputs.ecr_repository_url }}:${{ env.IMAGE_TAG }}"
-          echo "MySQL Image: ${{ needs.terraform.outputs.ecr_repository_url }}-mysql:${{ env.IMAGE_TAG }}"
+          echo "MySQL Image: ${{ needs.terraform.outputs.ecr_repository_url }}:mysql-${{ env.IMAGE_TAG }}"
           echo "Image Tag: ${{ env.IMAGE_TAG }}"
           echo ""
           echo "=== NEXT STEPS ==="
           echo "Images are now available in ECR and ready for Kubernetes deployment"
+
+      - name: Verify ECR Images Exist
+        run: |
+          echo "Verifying ECR images exist..."
+          aws ecr describe-images --repository-name $(echo ${{ needs.terraform.outputs.ecr_repository_url }} | cut -d'/' -f2) --image-ids imageTag=${{ env.IMAGE_TAG }} || echo "Flask image not found"
+          aws ecr describe-images --repository-name $(echo ${{ needs.terraform.outputs.ecr_repository_url }} | cut -d'/' -f2) --image-ids imageTag=mysql-${{ env.IMAGE_TAG }} || echo "MySQL image not found"
 
       - name: Setup kubectl
         uses: azure/setup-kubectl@v3
@@ -334,14 +340,27 @@ jobs:
       - name: Deploy to K3s cluster
         run: |
           sed -i "s|:latest|:${{ env.IMAGE_TAG }}|g" k8s/overlays/testing/kustomization.yaml
+          sed -i "s|mysql-latest|mysql-${{ env.IMAGE_TAG }}|g" k8s/overlays/testing/kustomization.yaml
           sed -i "s|CONTROL_PLANE_IP|${{ needs.terraform.outputs.control_plane_ip }}|g" k8s/overlays/testing/ingress-patch.yaml
 
           ls -R k8s/overlays/testing/
 
           kubectl apply -k k8s/overlays/testing/
 
+          echo "Waiting for MySQL deployment to be ready..."
+          kubectl wait --for=condition=available --timeout=300s deployment/mysql
+          
+          echo "Waiting for Flask deployment to be ready..."
           kubectl wait --for=condition=available --timeout=600s deployment/flaskapp
 
+          echo "=== Deployment Status ==="
           kubectl get pods 
           kubectl get services
           kubectl get ingress
+          
+          echo "=== Pod Logs (if any issues) ==="
+          kubectl logs deployment/flaskapp --tail=50 || echo "No Flask logs available"
+          kubectl logs deployment/mysql --tail=50 || echo "No MySQL logs available"
+          
+          echo "=== Pod Events ==="
+          kubectl get events --sort-by='.lastTimestamp' | tail -20

@@ -5,10 +5,10 @@ resources:
 images:
   - name: yehiashaikhoun/flaskapp # Flask app image
     newName: yehiashaikhoun/flaskapp # New name
-    newTag: latest # New tag
+    newTag: d76653ba0164d36c827c4416dbaf28e524a32e73 # New tag
   - name: yehiashaikhoun/mysql # MySQL image
-    newName: docker.io/yehiashaikhoun/mysql # New name
-    newTag: latest # New tag
+    newName: yehiashaikhoun/mysql # New name
+    newTag: mysql-latest # New tag
 
 patches:
   - path: flask-deploy-patch.yaml # Flask deployment patch
