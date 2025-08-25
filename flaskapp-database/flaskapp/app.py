@@ -5,7 +5,15 @@ from flask import (
 from flaskext.mysql import MySQL
 import os
 
-app = Flask(__name__)
+# External prefix presented by ingress
+BASE_PATH = "/flask"
+
+# Configure Flask so static files are served at /flask/static/...
+app = Flask(
+    __name__,
+    static_url_path=f"{BASE_PATH}/static",  # serve static at /flask/static
+    static_folder="static"
+)
 app.secret_key = 'why_would_I_tell_you_my_secret'  # change for prod
 
 mysql = MySQL()
@@ -18,16 +26,15 @@ app.config['MYSQL_DATABASE_HOST'] = os.getenv('MYSQL_DATABASE_HOST')
 
 mysql.init_app(app)
 
-# External prefix presented by ingress
-BASE_PATH = "/flask"
-
-# Add static file URL prefix configuration
+# Add static file URL prefix configuration (not strictly required anymore)
 app.config['APPLICATION_ROOT'] = BASE_PATH
+
 
 @app.context_processor
 def inject_base_path():
     """Make BASE_PATH available in Jinja templates"""
     return dict(BASE_PATH=BASE_PATH)
+
 
 def redirect_with_base(endpoint, **values):
     """
@@ -36,10 +43,6 @@ def redirect_with_base(endpoint, **values):
     """
     return redirect(BASE_PATH + url_for(endpoint, **values))
 
-# Add a route to handle static files explicitly if needed
-@app.route('/static/<path:filename>')
-def static_files(filename):
-    return app.send_static_file(filename)
 
 @app.route("/")
 def main():
