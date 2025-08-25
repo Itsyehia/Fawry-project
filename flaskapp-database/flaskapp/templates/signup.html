@@ -1,4 +1,3 @@
-<!-- signup.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -9,14 +8,14 @@
     <link href="https://getbootstrap.com/docs/3.4/examples/jumbotron-narrow/jumbotron-narrow.css" rel="stylesheet">
 
     <!-- App-specific CSS -->
-    <link rel="stylesheet" href="{{ BASE_PATH }}{{ url_for('static', filename='css/signup.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/signup.css') }}">
 
     <!-- jQuery -->
-    <script src="{{ BASE_PATH }}{{ url_for('static', filename='js/jquery-1.12.2.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/jquery-1.12.2.js') }}"></script>
 
     <!-- App-specific JS -->
-    <script src="{{ BASE_PATH }}{{ url_for('static', filename='js/config.js') }}"></script>
-    <script src="{{ BASE_PATH }}{{ url_for('static', filename='js/signUp.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/config.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/signUp.js') }}"></script>
 </head>
 
 <body>
