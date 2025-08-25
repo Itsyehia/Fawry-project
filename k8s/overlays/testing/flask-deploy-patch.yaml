@@ -16,22 +16,6 @@ spec:
             limits:
               cpu: "500m"
               memory: "512Mi"
-          readinessProbe:
-            httpGet:
-              path: /flask/readiness
-              port: 5002
-            initialDelaySeconds: 30
-            periodSeconds: 10
-            timeoutSeconds: 5
-            failureThreshold: 3
-          livenessProbe:
-            httpGet:
-              path: /flask/healthz
-              port: 5002
-            initialDelaySeconds: 60
-            periodSeconds: 15
-            timeoutSeconds: 5
-            failureThreshold: 3
           env:
             - name: MYSQL_DATABASE_HOST
               value: "mysql"
