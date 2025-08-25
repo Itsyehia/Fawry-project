@@ -105,7 +105,7 @@ jobs:
   # 5) Build and push images to Docker Hub (flaskapp + mysql)
   build_and_push:
     runs-on: ubuntu-latest
-    needs: codeql
+    #needs: codeql
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -169,140 +169,140 @@ jobs:
             trivy-mysql-report.json
 
     # 7) Deploy to K3s cluster
-  deploy_to_k8s:
-    runs-on: ubuntu-latest
-    # needs: trivy_scan
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  # deploy_to_k8s:
+  #   runs-on: ubuntu-latest
+  #   # needs: trivy_scan
+  #   if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     
-    env:
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      IMAGE_TAG: ${{ github.sha }}
+  #   env:
+  #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  #     IMAGE_TAG: ${{ github.sha }}
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v3
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
+  #     - name: Setup Python
+  #       uses: actions/setup-python@v4
+  #       with:
+  #         python-version: '3.11'
 
-      - name: Install AWS CLI and kubectl
-        run: |
-          python -m pip install --upgrade pip
-          pip install awscli
-          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-          chmod +x kubectl
-          sudo mv kubectl /usr/local/bin/
+  #     - name: Install AWS CLI and kubectl
+  #       run: |
+  #         python -m pip install --upgrade pip
+  #         pip install awscli
+  #         curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+  #         chmod +x kubectl
+  #         sudo mv kubectl /usr/local/bin/
 
-      - name: Get Terraform outputs from S3 state
-        run: |
-          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-          BUCKET_NAME="poc-prod-vpc-logs-${ACCOUNT_ID}-preprod"
+  #     - name: Get Terraform outputs from S3 state
+  #       run: |
+  #         ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+  #         BUCKET_NAME="poc-prod-vpc-logs-${ACCOUNT_ID}-preprod"
           
-          echo "BUCKET_NAME=$BUCKET_NAME" >> $GITHUB_ENV
+  #         echo "BUCKET_NAME=$BUCKET_NAME" >> $GITHUB_ENV
 
-          # Download terraform state
-          aws s3 cp s3://$BUCKET_NAME/pre-prod/terraform.tfstate terraform_outputs.json
+  #         # Download terraform state
+  #         aws s3 cp s3://$BUCKET_NAME/pre-prod/terraform.tfstate terraform_outputs.json
           
-          # Install jq for JSON parsing
-          sudo apt-get update && sudo apt-get install -y jq
+  #         # Install jq for JSON parsing
+  #         sudo apt-get update && sudo apt-get install -y jq
 
-          CONTROL_PLANE_IP=$(jq -r '.outputs.ec2_public_ips.value[0]' terraform_outputs.json)
-          WORKER_IP=$(jq -r '.outputs.ec2_public_ips.value[1]' terraform_outputs.json)
-          CONTROL_PLANE_PRIVATE_IP=$(jq -r '.outputs.ec2_private_ips.value[0]' terraform_outputs.json)
-          WORKER_PRIVATE_IP=$(jq -r '.outputs.ec2_private_ips.value[1]' terraform_outputs.json)
-          SSH_PRIVATE_KEY=$(jq -r '.outputs.ssh_private_key.value' terraform_outputs.json)
+  #         CONTROL_PLANE_IP=$(jq -r '.outputs.ec2_public_ips.value[0]' terraform_outputs.json)
+  #         WORKER_IP=$(jq -r '.outputs.ec2_public_ips.value[1]' terraform_outputs.json)
+  #         CONTROL_PLANE_PRIVATE_IP=$(jq -r '.outputs.ec2_private_ips.value[0]' terraform_outputs.json)
+  #         WORKER_PRIVATE_IP=$(jq -r '.outputs.ec2_private_ips.value[1]' terraform_outputs.json)
+  #         SSH_PRIVATE_KEY=$(jq -r '.outputs.ssh_private_key.value' terraform_outputs.json)
 
-          echo "CONTROL_PLANE_IP=$CONTROL_PLANE_IP" >> $GITHUB_ENV
-          echo "WORKER_IP=$WORKER_IP" >> $GITHUB_ENV
-          echo "CONTROL_PLANE_PRIVATE_IP=$CONTROL_PLANE_PRIVATE_IP" >> $GITHUB_ENV
-          echo "WORKER_PRIVATE_IP=$WORKER_PRIVATE_IP" >> $GITHUB_ENV
+  #         echo "CONTROL_PLANE_IP=$CONTROL_PLANE_IP" >> $GITHUB_ENV
+  #         echo "WORKER_IP=$WORKER_IP" >> $GITHUB_ENV
+  #         echo "CONTROL_PLANE_PRIVATE_IP=$CONTROL_PLANE_PRIVATE_IP" >> $GITHUB_ENV
+  #         echo "WORKER_PRIVATE_IP=$WORKER_PRIVATE_IP" >> $GITHUB_ENV
 
-          echo "Control Plane IP: $CONTROL_PLANE_IP"
-          echo "Worker IP: $WORKER_IP"
+  #         echo "Control Plane IP: $CONTROL_PLANE_IP"
+  #         echo "Worker IP: $WORKER_IP"
 
-          # Save SSH private key
-          echo "$SSH_PRIVATE_KEY" > private-key.pem
-          chmod 600 private-key.pem
+  #         # Save SSH private key
+  #         echo "$SSH_PRIVATE_KEY" > private-key.pem
+  #         chmod 600 private-key.pem
 
-      - name: Setup SSH access to K3s
-        run: |
-          mkdir -p ~/.ssh
-          cp private-key.pem ~/.ssh/k3s-key
-          chmod 600 ~/.ssh/k3s-key
+  #     - name: Setup SSH access to K3s
+  #       run: |
+  #         mkdir -p ~/.ssh
+  #         cp private-key.pem ~/.ssh/k3s-key
+  #         chmod 600 ~/.ssh/k3s-key
 
-          # Write SSH config
-          cat > ~/.ssh/config <<EOF
-          Host k3s-control
-            HostName ${{ env.CONTROL_PLANE_IP }}
-            User ubuntu
-            IdentityFile ~/.ssh/k3s-key
-            StrictHostKeyChecking no
-          EOF
+  #         # Write SSH config
+  #         cat > ~/.ssh/config <<EOF
+  #         Host k3s-control
+  #           HostName ${{ env.CONTROL_PLANE_IP }}
+  #           User ubuntu
+  #           IdentityFile ~/.ssh/k3s-key
+  #           StrictHostKeyChecking no
+  #         EOF
 
-          echo "✅ SSH config written:"
-          cat ~/.ssh/config
+  #         echo "✅ SSH config written:"
+  #         cat ~/.ssh/config
 
-      - name: Debug SSH Info
-        run: |
-          echo "Control plane IP: ${{ env.CONTROL_PLANE_IP }}"
-          ls -l ~/.ssh/
-          cat ~/.ssh/config
+  #     - name: Debug SSH Info
+  #       run: |
+  #         echo "Control plane IP: ${{ env.CONTROL_PLANE_IP }}"
+  #         ls -l ~/.ssh/
+  #         cat ~/.ssh/config
 
-      - name: Copy kubeconfig from K3s
-        run: |
-          mkdir -p ~/.kube
-          ssh k3s-control "sudo cat /etc/rancher/k3s/k3s.yaml" > ~/.kube/config
-          echo "Original kubeconfig:"
-          cat ~/.kube/config
-          sed -i "s/127.0.0.1/${{ env.CONTROL_PLANE_IP }}/g" ~/.kube/config
-          sed -i "s/localhost/${{ env.CONTROL_PLANE_IP }}/g" ~/.kube/config
-          sed -i "s/${{ env.CONTROL_PLANE_PRIVATE_IP }}/${{ env.CONTROL_PLANE_IP }}/g" ~/.kube/config
-          echo "Updated kubeconfig:"
-          cat ~/.kube/config
+  #     - name: Copy kubeconfig from K3s
+  #       run: |
+  #         mkdir -p ~/.kube
+  #         ssh k3s-control "sudo cat /etc/rancher/k3s/k3s.yaml" > ~/.kube/config
+  #         echo "Original kubeconfig:"
+  #         cat ~/.kube/config
+  #         sed -i "s/127.0.0.1/${{ env.CONTROL_PLANE_IP }}/g" ~/.kube/config
+  #         sed -i "s/localhost/${{ env.CONTROL_PLANE_IP }}/g" ~/.kube/config
+  #         sed -i "s/${{ env.CONTROL_PLANE_PRIVATE_IP }}/${{ env.CONTROL_PLANE_IP }}/g" ~/.kube/config
+  #         echo "Updated kubeconfig:"
+  #         cat ~/.kube/config
 
-      - name: Wait for kubectl to connect to K3s
-        run: |
-          for i in {1..30}; do
-            if kubectl get nodes --request-timeout=10s >/dev/null 2>&1; then
-              echo "K3s API server is ready for kubectl!"
-              break
-            fi
-            echo "Attempt $i: kubectl not ready yet, waiting..."
-            sleep 10
-          done
+  #     - name: Wait for kubectl to connect to K3s
+  #       run: |
+  #         for i in {1..30}; do
+  #           if kubectl get nodes --request-timeout=10s >/dev/null 2>&1; then
+  #             echo "K3s API server is ready for kubectl!"
+  #             break
+  #           fi
+  #           echo "Attempt $i: kubectl not ready yet, waiting..."
+  #           sleep 10
+  #         done
       
-      - name: Create secrets directory and files
-        run: |
-          mkdir -p k8s/base/secrets
+  #     - name: Create secrets directory and files
+  #       run: |
+  #         mkdir -p k8s/base/secrets
           
-          cat > k8s/base/secrets/db.env << EOF
-          MYSQL_ROOT_PASSWORD=root
-          MYSQL_DATABASE=BucketList
-          MYSQL_DATABASE_PASSWORD=root
-          EOF
+  #         cat > k8s/base/secrets/db.env << EOF
+  #         MYSQL_ROOT_PASSWORD=root
+  #         MYSQL_DATABASE=BucketList
+  #         MYSQL_DATABASE_PASSWORD=root
+  #         EOF
           
-          echo "Created secrets directory and db.env file"
-          ls -la k8s/base/secrets/
+  #         echo "Created secrets directory and db.env file"
+  #         ls -la k8s/base/secrets/
 
-      - name: Deploy to K3s cluster
-        run: |
-          sed -i "s|:latest|:${{ env.IMAGE_TAG }}|g" k8s/overlays/testing/kustomization.yaml
-          sed -i "s|CONTROL_PLANE_IP|${{ env.CONTROL_PLANE_IP }}|g" k8s/overlays/testing/ingress-patch.yaml
+  #     - name: Deploy to K3s cluster
+  #       run: |
+  #         sed -i "s|:latest|:${{ env.IMAGE_TAG }}|g" k8s/overlays/testing/kustomization.yaml
+  #         sed -i "s|CONTROL_PLANE_IP|${{ env.CONTROL_PLANE_IP }}|g" k8s/overlays/testing/ingress-patch.yaml
 
-          ls -R k8s/overlays/testing/
+  #         ls -R k8s/overlays/testing/
 
-          kubectl apply -k k8s/overlays/testing/
+  #         kubectl apply -k k8s/overlays/testing/
 
-          kubectl get pods
-          kubectl get services  
-          kubectl get ingress
+  #         kubectl get pods
+  #         kubectl get services  
+  #         kubectl get ingress
 
-      - name: Cleanup sensitive files
-        if: always()
-        run: |
-          rm -f ~/.ssh/k3s-key
-          rm -f private-key.pem
-          rm -f terraform_outputs.json
+  #     - name: Cleanup sensitive files
+  #       if: always()
+  #       run: |
+  #         rm -f ~/.ssh/k3s-key
+  #         rm -f private-key.pem
+  #         rm -f terraform_outputs.json
