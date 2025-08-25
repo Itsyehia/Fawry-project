@@ -1,33 +1,27 @@
-# k8s/base/ingress.yaml
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: flaskapp-ingress
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /$2
-    nginx.ingress.kubernetes.io/use-regex: "true"
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
     nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
-    # Add this annotation to handle static files properly
-    nginx.ingress.kubernetes.io/configuration-snippet: |
-      rewrite ^/flask$ /flask/ permanent;
 spec:
   ingressClassName: nginx
   rules:
     - host: 54.154.109.118.nip.io
       http:
         paths:
-          # Handle static files first (more specific path)
-          - path: /flask/static(/|$)(.*)
-            pathType: ImplementationSpecific
+          # Serve static files correctly
+          - path: /flask/static
+            pathType: Prefix
             backend:
               service:
                 name: flaskapp-service
                 port:
                   number: 80
-          # Handle all other flask routes
-          - path: /flask(/|$)(.*)
-            pathType: ImplementationSpecific
+          # Forward all other flask routes
+          - path: /flask
+            pathType: Prefix
             backend:
               service:
                 name: flaskapp-service
