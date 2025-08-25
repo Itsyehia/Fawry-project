@@ -1,25 +1,21 @@
+# k8s/overlays/testing/ingress-patch.yaml
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: flaskapp-ingress
+  name: flaskapp-ingress # Ingress name
   annotations:
-    nginx.ingress.kubernetes.io/ssl-redirect: "false"
-    nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2 # Rewrite target
+    nginx.ingress.kubernetes.io/use-regex: "true" # Use regex
+    nginx.ingress.kubernetes.io/ssl-redirect: "false" # SSL redirect
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "false" # Force SSL redirect
 spec:
-  ingressClassName: nginx
+  ingressClassName: nginx # Ingress class name
   rules:
-    - host: 54.154.109.118.nip.io
+    - host: 54.154.109.118.nip.io # Will be replaced by Terraform workflow
       http:
         paths:
-          - path: /flask/static
-            pathType: Prefix
-            backend:
-              service:
-                name: flaskapp-service
-                port:
-                  number: 80
-          - path: /flask
-            pathType: Prefix
+          - path: /flask(/|$)(.*)
+            pathType: ImplementationSpecific
             backend:
               service:
                 name: flaskapp-service
