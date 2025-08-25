@@ -1,17 +1,20 @@
 from flask import (
-    Flask, render_template, json,
-    request, redirect, session, url_for, jsonify
+    Flask, render_template, request, redirect,
+    session, url_for, jsonify
 )
 from flaskext.mysql import MySQL
+from werkzeug.middleware.dispatcher import DispatcherMiddleware
+from werkzeug.serving import run_simple
 import os
+import json
 
 # External prefix presented by ingress
 BASE_PATH = "/flask"
 
-# Configure Flask so static files are served at /flask/static/...
+# Create Flask app
 app = Flask(
     __name__,
-    static_url_path=f"{BASE_PATH}/static",  # serve static at /flask/static
+    static_url_path="/static",   # keep static under /static (DispatcherMiddleware will add /flask prefix)
     static_folder="static"
 )
 app.secret_key = 'why_would_I_tell_you_my_secret'  # change for prod
@@ -26,9 +29,6 @@ app.config['MYSQL_DATABASE_HOST'] = os.getenv('MYSQL_DATABASE_HOST')
 
 mysql.init_app(app)
 
-# Add static file URL prefix configuration (not strictly required anymore)
-app.config['APPLICATION_ROOT'] = BASE_PATH
-
 
 @app.context_processor
 def inject_base_path():
@@ -37,10 +37,7 @@ def inject_base_path():
 
 
 def redirect_with_base(endpoint, **values):
-    """
-    Build an app-internal URL with url_for, then prefix with BASE_PATH
-    so the browser is redirected to /flask/... (what ingress exposes).
-    """
+    """Helper to redirect with BASE_PATH prefix"""
     return redirect(BASE_PATH + url_for(endpoint, **values))
 
 
@@ -79,19 +76,13 @@ def signUp():
             return jsonify({'error': str(data[0])}), 400
         return jsonify({'error': 'Enter all required fields'}), 400
     except Exception as e:
-        print("signUp error:", str(e))  # log the error
+        print("signUp error:", str(e))
         return jsonify({'error': str(e)}), 500
     finally:
-        try:
-            if cursor:
-                cursor.close()
-        except Exception:
-            pass
-        try:
-            if conn:
-                conn.close()
-        except Exception:
-            pass
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 
 @app.route('/validateLogin', methods=['POST'])
@@ -110,24 +101,15 @@ def validateLogin():
             session['user'] = data[0][0]
             return redirect_with_base('userHome')
 
-        return render_template(
-            'error.html',
-            error='Wrong Email address or Password'
-        )
+        return render_template('error.html', error='Wrong Email address or Password')
     except Exception as e:
         print("validateLogin error:", str(e))
         return render_template('error.html', error=str(e))
     finally:
-        try:
-            if cursor:
-                cursor.close()
-        except Exception:
-            pass
-        try:
-            if conn:
-                conn.close()
-        except Exception:
-            pass
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 
 @app.route('/userHome')
@@ -149,13 +131,8 @@ def getWish():
             wishes = cursor.fetchall()
 
             wishes_dict = [
-                {
-                    'Id': wish[0],
-                    'Title': wish[1],
-                    'Description': wish[2],
-                    'Date': wish[4]
-                }
-                for wish in wishes
+                {'Id': w[0], 'Title': w[1], 'Description': w[2], 'Date': w[4]}
+                for w in wishes
             ]
             return json.dumps(wishes_dict)
 
@@ -164,21 +141,14 @@ def getWish():
         print("getWish error:", str(e))
         return render_template('error.html', error=str(e))
     finally:
-        try:
-            if cursor:
-                cursor.close()
-        except Exception:
-            pass
-        try:
-            if conn:
-                conn.close()
-        except Exception:
-            pass
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 
 @app.route('/addWish', methods=['POST'])
 def addWish():
-    import traceback
     conn, cursor = None, None
     try:
         if session.get('user'):
@@ -200,19 +170,12 @@ def addWish():
         return render_template('error.html', error='Unauthorized Access')
     except Exception as e:
         print("addWish error:", str(e))
-        traceback.print_exc()
         return render_template('error.html', error=str(e)), 500
     finally:
-        try:
-            if cursor:
-                cursor.close()
-        except Exception:
-            pass
-        try:
-            if conn:
-                conn.close()
-        except Exception:
-            pass
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 
 @app.route('/logout')
@@ -248,5 +211,9 @@ def readiness():
         return f"not ready: {str(e)}", 503
 
 
+application = DispatcherMiddleware(Flask("dummy"), {
+    BASE_PATH: app
+})
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5002)
+    run_simple("0.0.0.0", 5002, application, use_reloader=True, use_debugger=True)
