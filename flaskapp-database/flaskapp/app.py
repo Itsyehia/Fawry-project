@@ -14,8 +14,7 @@ BASE_PATH = "/flask"
 # Create Flask app
 app = Flask(
     __name__,
-    # keep static under /static (DispatcherMiddleware will add /flask prefix)
-    static_url_path="/static",
+    static_url_path="/static",   # keep static under /static (DispatcherMiddleware will add /flask prefix)
     static_folder="static"
 )
 app.secret_key = 'why_would_I_tell_you_my_secret'  # change for prod
@@ -102,9 +101,7 @@ def validateLogin():
             session['user'] = data[0][0]
             return redirect_with_base('userHome')
 
-        return render_template(
-            'error.html', error='Wrong Email address or Password'
-        )
+        return render_template('error.html', error='Wrong Email address or Password')
     except Exception as e:
         print("validateLogin error:", str(e))
         return render_template('error.html', error=str(e))
@@ -219,6 +216,4 @@ application = DispatcherMiddleware(Flask("dummy"), {
 })
 
 if __name__ == "__main__":
-    run_simple(
-        "0.0.0.0", 5002, application, use_reloader=True, use_debugger=True
-    )
+    run_simple("0.0.0.0", 5002, application, use_reloader=True, use_debugger=True)
