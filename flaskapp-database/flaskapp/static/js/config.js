@@ -1,3 +1,4 @@
+// config.js
 const BASE_PATH = "/flask";
 
 const FLASK_URLS = {
