@@ -40,11 +40,3 @@ spec:
           limits:
             cpu: "200m"
             memory: "256Mi"
-        
-          httpGet:
-            path: /flask/healthz
-            port: 5002
-          initialDelaySeconds: 60
-          periodSeconds: 15
-          timeoutSeconds: 5
-          failureThreshold: 3 
