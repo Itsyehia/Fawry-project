@@ -19,7 +19,7 @@ app.config['MYSQL_DATABASE_HOST'] = os.getenv('MYSQL_DATABASE_HOST')
 mysql.init_app(app)
 
 # External prefix presented by ingress
-BASE_PATH = "/flask"
+BASE_PATH = ""
 
 
 @app.context_processor
@@ -33,7 +33,7 @@ def redirect_with_base(endpoint, **values):
     Build an app-internal URL with url_for, then prefix with BASE_PATH
     so the browser is redirected to /flask/... (what ingress exposes).
     """
-    return redirect(BASE_PATH + url_for(endpoint, **values))
+    return redirect(url_for(endpoint, **values))
 
 
 @app.route("/")
