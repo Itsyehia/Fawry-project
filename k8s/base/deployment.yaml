@@ -42,7 +42,7 @@ spec:
             memory: "256Mi"
         readinessProbe:
           httpGet:
-            path: /
+            path: /flask/readiness
             port: 5002
           initialDelaySeconds: 30
           periodSeconds: 10
@@ -50,7 +50,7 @@ spec:
           failureThreshold: 3
         livenessProbe:
           httpGet:
-            path: /
+            path: /flask/healthz
             port: 5002
           initialDelaySeconds: 60
           periodSeconds: 15
