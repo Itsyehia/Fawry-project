@@ -5,13 +5,13 @@ from flask import (
 from flaskext.mysql import MySQL
 import os
 
-# External prefix presented by ingress
+# Hardcoded base path
 BASE_PATH = "/flask"
 
 # Configure Flask so static files are served at /flask/static/...
 app = Flask(
     __name__,
-    static_url_path=f"{BASE_PATH}/static",  # serve static at /flask/static
+    static_url_path=f"{BASE_PATH}/static",
     static_folder="static"
 )
 app.secret_key = 'why_would_I_tell_you_my_secret'  # change for prod
@@ -26,9 +26,6 @@ app.config['MYSQL_DATABASE_HOST'] = os.getenv('MYSQL_DATABASE_HOST')
 
 mysql.init_app(app)
 
-# Add static file URL prefix configuration (not strictly required anymore)
-app.config['APPLICATION_ROOT'] = BASE_PATH
-
 
 @app.context_processor
 def inject_base_path():
@@ -37,29 +34,25 @@ def inject_base_path():
 
 
 def redirect_with_base(endpoint, **values):
-    """
-    Build an app-internal URL with url_for, then prefix with BASE_PATH
-    so the browser is redirected to /flask/... (what ingress exposes).
-    """
     return redirect(BASE_PATH + url_for(endpoint, **values))
 
 
-@app.route("/")
+@app.route(f"{BASE_PATH}/")
 def main():
     return render_template('index.html')
 
 
-@app.route('/showSignUp')
+@app.route(f"{BASE_PATH}/showSignUp")
 def showSignUp():
     return render_template('signup.html')
 
 
-@app.route('/showSignIn')
+@app.route(f"{BASE_PATH}/showSignIn")
 def showSignIn():
     return render_template('signin.html')
 
 
-@app.route('/signUp', methods=['POST'])
+@app.route(f"{BASE_PATH}/signUp", methods=['POST'])
 def signUp():
     conn, cursor = None, None
     try:
@@ -79,22 +72,16 @@ def signUp():
             return jsonify({'error': str(data[0])}), 400
         return jsonify({'error': 'Enter all required fields'}), 400
     except Exception as e:
-        print("signUp error:", str(e))  # log the error
+        print("signUp error:", str(e))
         return jsonify({'error': str(e)}), 500
     finally:
-        try:
-            if cursor:
-                cursor.close()
-        except Exception:
-            pass
-        try:
-            if conn:
-                conn.close()
-        except Exception:
-            pass
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 
-@app.route('/validateLogin', methods=['POST'])
+@app.route(f"{BASE_PATH}/validateLogin", methods=['POST'])
 def validateLogin():
     conn, cursor = None, None
     try:
@@ -111,33 +98,26 @@ def validateLogin():
             return redirect_with_base('userHome')
 
         return render_template(
-            'error.html',
-            error='Wrong Email address or Password'
+            'error.html', error='Wrong Email address or Password'
         )
     except Exception as e:
         print("validateLogin error:", str(e))
         return render_template('error.html', error=str(e))
     finally:
-        try:
-            if cursor:
-                cursor.close()
-        except Exception:
-            pass
-        try:
-            if conn:
-                conn.close()
-        except Exception:
-            pass
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 
-@app.route('/userHome')
+@app.route(f"{BASE_PATH}/userHome")
 def userHome():
     if session.get('user'):
         return render_template('userHome.html')
     return render_template('error.html', error='Unauthorized Access')
 
 
-@app.route('/getWish')
+@app.route(f"{BASE_PATH}/getWish")
 def getWish():
     conn, cursor = None, None
     try:
@@ -149,13 +129,8 @@ def getWish():
             wishes = cursor.fetchall()
 
             wishes_dict = [
-                {
-                    'Id': wish[0],
-                    'Title': wish[1],
-                    'Description': wish[2],
-                    'Date': wish[4]
-                }
-                for wish in wishes
+                {'Id': w[0], 'Title': w[1], 'Description': w[2], 'Date': w[4]}
+                for w in wishes
             ]
             return json.dumps(wishes_dict)
 
@@ -164,19 +139,13 @@ def getWish():
         print("getWish error:", str(e))
         return render_template('error.html', error=str(e))
     finally:
-        try:
-            if cursor:
-                cursor.close()
-        except Exception:
-            pass
-        try:
-            if conn:
-                conn.close()
-        except Exception:
-            pass
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 
-@app.route('/addWish', methods=['POST'])
+@app.route(f"{BASE_PATH}/addWish", methods=['POST'])
 def addWish():
     import traceback
     conn, cursor = None, None
@@ -203,39 +172,32 @@ def addWish():
         traceback.print_exc()
         return render_template('error.html', error=str(e)), 500
     finally:
-        try:
-            if cursor:
-                cursor.close()
-        except Exception:
-            pass
-        try:
-            if conn:
-                conn.close()
-        except Exception:
-            pass
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 
-@app.route('/logout')
+@app.route(f"{BASE_PATH}/logout")
 def logout():
     session.pop('user', None)
     return redirect_with_base('main')
 
 
-@app.route('/showAddWish')
+@app.route(f"{BASE_PATH}/showAddWish")
 def showAddWish():
     if session.get('user'):
         return render_template('addWish.html')
     return render_template('error.html', error='Unauthorized Access')
 
 
-@app.route('/healthz')
+@app.route(f"{BASE_PATH}/healthz")
 def healthz():
     return "ok", 200
 
 
-@app.route('/readiness')
+@app.route(f"{BASE_PATH}/readiness")
 def readiness():
-    """Readiness probe that checks database connectivity"""
     try:
         conn = mysql.connect()
         cursor = conn.cursor()
